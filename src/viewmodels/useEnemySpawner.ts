@@ -36,7 +36,7 @@ export function useEnemySpawner() {
             y = Math.random() * GAME_CONFIG.VIEWPORT.LOGICAL_HEIGHT;
         } else if (side === 2) {
             x = Math.random() * GAME_CONFIG.VIEWPORT.LOGICAL_WIDTH;
-            y = GAME_CONFIG.PHYSICS.BOUNDARY_HEIGHT;
+            y = GAME_CONFIG.VIEWPORT.LOGICAL_HEIGHT - GAME_CONFIG.PHYSICS.BOUNDARY_PADDING;
         } else {
             x = GAME_CONFIG.PHYSICS.BOUNDARY_PADDING;
             y = Math.random() * GAME_CONFIG.VIEWPORT.LOGICAL_HEIGHT;
