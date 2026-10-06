@@ -3,7 +3,7 @@
         "name": "Pokemon Distortion Rift",
         "slug": "pokemon-distortion-rift",
         "version": "1.0.0",
-        "orientation": "portrait",
+        "orientation": "landscape",
         "userInterfaceStyle": "dark",
         "newArchEnabled": true,
         "splash": {

@@ -10,13 +10,14 @@ import Animated, {
     withTiming,
     Easing,
 } from 'react-native-reanimated';
+import { GAME_CONFIG } from './src/config/gameConfig';
 
 export default function App() {
     const pulseScale = useSharedValue(1);
 
     useEffect(() => {
         pulseScale.value = withRepeat(
-            withTiming(1.08, {
+            withTiming(1.05, {
                 duration: 900,
                 easing: Easing.inOut(Easing.ease),
             }),
@@ -25,7 +26,7 @@ export default function App() {
         );
     }, [pulseScale]);
 
-    const animatedLogoStyle = useAnimatedStyle(() => {
+    const animatedBannerStyle = useAnimatedStyle(() => {
         return {
             transform: [{ scale: pulseScale.value }],
         };
@@ -34,15 +35,19 @@ export default function App() {
     return (
         <SafeAreaProvider>
             <GestureHandlerRootView style={styles.root}>
-                <StatusBar style="light" />
+                <StatusBar style="light" hidden={true} />
                 <SafeAreaView style={styles.container}>
-                    <Animated.View style={[styles.card, animatedLogoStyle]}>
-                        <Text style={styles.badge}>POKEMON ROGUELIKE</Text>
-                        <Text style={styles.title}>DISTORTION RIFT</Text>
-                        <Text style={styles.status}>SYSTEM ONLINE - 60 FPS READY</Text>
+                    <Animated.View style={[styles.card, animatedBannerStyle]}>
+                        <Text style={styles.badge}>LANDSCAPE VIEWPORT INITIALIZED</Text>
+                        <Text style={styles.title}>POKEMON DISTORTION RIFT</Text>
+                        <Text style={styles.resolution}>
+                            {GAME_CONFIG.VIEWPORT.LOGICAL_WIDTH} x {GAME_CONFIG.VIEWPORT.LOGICAL_HEIGHT} LOGICAL VIEWPORT
+                        </Text>
                     </Animated.View>
-                    <View style={styles.footer}>
-                        <Text style={styles.deviceInfo}>HARDWARE: XIAOMI REDMI CONNECTED</Text>
+                    <View style={styles.statusBarContainer}>
+                        <Text style={styles.statusText}>
+                            MVVM ARCHITECTURE LOADED - {GAME_CONFIG.VIEWPORT.TARGET_FPS} FPS TARGET
+                        </Text>
                     </View>
                 </SafeAreaView>
             </GestureHandlerRootView>
@@ -53,54 +58,53 @@ export default function App() {
 const styles = StyleSheet.create({
     root: {
         flex: 1,
-        backgroundColor: '#0B0C10',
+        backgroundColor: GAME_CONFIG.COLORS.VOID_BG,
     },
     container: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 24,
+        paddingHorizontal: GAME_CONFIG.PHYSICS.BOUNDARY_PADDING,
     },
     card: {
-        width: '100%',
-        paddingVertical: 32,
-        paddingHorizontal: 24,
-        borderRadius: 16,
-        backgroundColor: '#1F2833',
+        width: '75%',
+        paddingVertical: 24,
+        paddingHorizontal: 32,
+        borderRadius: GAME_CONFIG.UI.BORDER_RADIUS_MD,
+        backgroundColor: GAME_CONFIG.COLORS.ARENA_FLOOR,
         borderWidth: 2,
-        borderColor: '#45A29E',
+        borderColor: GAME_CONFIG.COLORS.ARENA_BORDER,
         alignItems: 'center',
     },
     badge: {
-        fontSize: 12,
+        fontSize: 11,
         letterSpacing: 2,
         fontWeight: '700',
-        color: '#66FCF1',
-        marginBottom: 8,
+        color: GAME_CONFIG.COLORS.CYAN_ACCENT,
+        marginBottom: 6,
     },
     title: {
-        fontSize: 26,
+        fontSize: 24,
         fontWeight: '900',
-        color: '#FFFFFF',
-        letterSpacing: 1.5,
-        marginBottom: 12,
+        color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
+        letterSpacing: 2,
+        marginBottom: 8,
         textAlign: 'center',
     },
-    status: {
+    resolution: {
         fontSize: 13,
-        fontWeight: '600',
-        color: '#66FCF1',
-        letterSpacing: 1,
-        textAlign: 'center',
+        fontWeight: '700',
+        color: GAME_CONFIG.COLORS.CRITICAL_TEXT,
+        letterSpacing: 1.5,
     },
-    footer: {
-        position: 'absolute',
-        bottom: 32,
+    statusBarContainer: {
+        marginTop: 18,
         alignItems: 'center',
     },
-    deviceInfo: {
+    statusText: {
         fontSize: 11,
-        color: '#C5C6C7',
-        letterSpacing: 1,
+        color: GAME_CONFIG.COLORS.TEXT_SECONDARY,
+        letterSpacing: 1.2,
+        fontWeight: '600',
     },
 });
