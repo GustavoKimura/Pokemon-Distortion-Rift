@@ -10,7 +10,10 @@
             "backgroundColor": "#0B0C10"
         },
         "android": {
-            "package": "com.anonymous.pokemondistortionrift"
+            "package": "com.anonymous.pokemondistortionrift",
+            "navigationBar": {
+                "visible": "sticky-immersive"
+            }
         }
     }
 }
