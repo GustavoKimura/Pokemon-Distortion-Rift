@@ -1,0 +1,16 @@
+{
+    "expo": {
+        "name": "Pokemon Distortion Rift",
+        "slug": "pokemon-distortion-rift",
+        "version": "1.0.0",
+        "orientation": "portrait",
+        "userInterfaceStyle": "dark",
+        "newArchEnabled": true,
+        "splash": {
+            "backgroundColor": "#0B0C10"
+        },
+        "android": {
+            "package": "com.anonymous.pokemondistortionrift"
+        }
+    }
+}
