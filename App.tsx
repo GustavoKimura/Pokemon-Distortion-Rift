@@ -17,8 +17,7 @@ function GameScreen() {
 
     useEffect(() => {
         if (Platform.OS === 'android') {
-            NavigationBar.setVisibilityAsync('hidden');
-            NavigationBar.setBehaviorAsync('overlay-swipe');
+            NavigationBar.setVisibilityAsync('hidden').catch(() => { });
         }
         pokeApiService.fetchPokemon('charmander').then(setPokemon);
     }, []);
