@@ -5,38 +5,47 @@ Top-down real-time action roguelite engine built on React Native, Expo SDK 52, T
 ## Technical Architecture
 - Pattern: Model-View-ViewModel (MVVM)
 - Engine: 60 FPS deterministic loop via Reanimated Worklets
-- Target Hardware: Android physical devices (Xiaomi Redmi) via USB reverse tunneling
+- Target Hardware: Android physical devices via USB reverse tunneling
 - State Management: Custom reactive hooks without JSX coupling
+
+## Android Device Settings
+Ensure the following configurations are set inside Developer Options:
+- USB Debugging: Enabled
+- Install via USB: Enabled
+- Verify apps over USB: Disabled
 
 ## Prerequisites
 - Node.js 18+ LTS
 - Android SDK Platform-Tools (ADB)
-- Expo Go installed on target Android device
+- Expo Go APK installed on target device
 - USB Debugging enabled on target device
 
 ## Development Workflow
 
-### 1. Identify Target Device
-Check active device serial:
+### 1. Reset ADB Daemon
+Ensure clean ADB communication:
 
-    adb devices
+    adb kill-server
+    adb start-server
 
-### 2. Target Device Serial
-Configure PowerShell session to bind target device:
+### 2. Manual APK Installation via Push
+Transfer the APK to device Downloads folder:
 
-    $env:ANDROID_SERIAL="b16a69a5"
+    adb push "C:\Users\Admin\.expo\android-apk-cache\Expo-Go-2.32.20.apk" /sdcard/Download/ExpoGo.apk
+
+Open device File Manager, locate Downloads, and install ExpoGo.apk.
 
 ### 3. Reverse Port Forwarding
-Forward Metro Bundler port to device:
+Forward Metro Bundler port to connected Android device:
 
-    adb -s b16a69a5 reverse tcp:8081 tcp:8081
+    adb reverse tcp:8081 tcp:8081
 
 ### 4. Launch Metro Bundler
 Start development server bound to localhost:
 
     npx expo start --localhost
 
-### 5. Launch On Physical Device
+### 5. Launch Application
 In the interactive Metro terminal, press the key "a" to trigger Android launch.
 
 ## Project Directory Structure
