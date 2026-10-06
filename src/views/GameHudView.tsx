@@ -8,6 +8,7 @@ interface GameHudViewProps {
     player: PlayerPokemon | null;
     currentWave: number;
     kills: number;
+    fps: number;
     status: GameStatus;
     onRestart: () => void;
     scale: number;
@@ -17,6 +18,7 @@ export function GameHudView({
     player,
     currentWave,
     kills,
+    fps,
     status,
     onRestart,
     scale,
@@ -74,13 +76,20 @@ export function GameHudView({
                     </View>
                 )}
 
-                <View style={styles.wavePanel}>
-                    <Text style={[styles.waveText, { fontSize: Math.max(12, 14 * scale) }]}>
-                        WAVE {currentWave}
-                    </Text>
-                    <Text style={[styles.killsText, { fontSize: Math.max(9, 10 * scale) }]}>
-                        VOID PURGED: {kills}
-                    </Text>
+                <View style={styles.topRightRow}>
+                    <View style={[styles.fpsBadge, { paddingHorizontal: 6 * scale, paddingVertical: 2 * scale }]}>
+                        <Text style={[styles.fpsText, { fontSize: Math.max(9, 10 * scale) }]}>
+                            {fps} FPS
+                        </Text>
+                    </View>
+                    <View style={styles.wavePanel}>
+                        <Text style={[styles.waveText, { fontSize: Math.max(12, 14 * scale) }]}>
+                            WAVE {currentWave}
+                        </Text>
+                        <Text style={[styles.killsText, { fontSize: Math.max(9, 10 * scale) }]}>
+                            VOID PURGED: {kills}
+                        </Text>
+                    </View>
                 </View>
             </View>
 
@@ -145,6 +154,22 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
         textAlign: 'center',
+    },
+    topRightRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+    },
+    fpsBadge: {
+        backgroundColor: 'rgba(31, 40, 51, 0.85)',
+        borderWidth: 1,
+        borderColor: GAME_CONFIG.COLORS.CYAN_ACCENT,
+        borderRadius: GAME_CONFIG.UI.BORDER_RADIUS_SM,
+    },
+    fpsText: {
+        fontWeight: '900',
+        color: GAME_CONFIG.COLORS.CYAN_ACCENT,
+        letterSpacing: 1,
     },
     wavePanel: {
         alignItems: 'flex-end',

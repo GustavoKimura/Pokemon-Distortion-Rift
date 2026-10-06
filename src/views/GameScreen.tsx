@@ -23,6 +23,7 @@ export function GameScreen() {
         cooldowns,
         currentWave,
         kills,
+        fps,
         status,
         setJoystickInput,
         handleAction,
@@ -61,6 +62,7 @@ export function GameScreen() {
                     player={player}
                     currentWave={currentWave}
                     kills={kills}
+                    fps={fps}
                     status={status}
                     onRestart={restartGame}
                     scale={metrics.scale}
