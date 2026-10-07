@@ -15,6 +15,15 @@ export const GAME_CONFIG = {
         MAX_FLOATING_DAMAGES: 3,
         MAX_DROPPED_ITEMS: 4,
     },
+    META: {
+        HP_BONUS_PER_LEVEL: 0.05,
+        ATK_BONUS_PER_LEVEL: 0.04,
+        SPD_BONUS_PER_LEVEL: 0.03,
+        CDR_BONUS_PER_LEVEL: 0.03,
+        TALENT_BASE_COST: 40,
+        TALENT_MAX_LEVEL: 8,
+        VOID_DUST_PER_KILL: 4,
+    },
     ITEMS: {
         DROP_CHANCE: 0.35,
         PICKUP_RADIUS: 80,
@@ -86,8 +95,8 @@ export const GAME_CONFIG = {
         HEALTH_BAR: '#E63946',
         SHIELD_DASH: '#457B9D',
         ULTIMATE_GAUGE: '#F4A261',
+        VOID_DUST_GOLD: '#FFD166',
         BLAZE_AURA: '#FF5722',
-        EVOLUTION_GLOW: '#FFD166',
         HITBOX_PLAYER: 'rgba(102, 252, 241, 0.45)',
         HITBOX_ENEMY: 'rgba(230, 57, 70, 0.45)',
         TEXT_PRIMARY: '#FFFFFF',
@@ -101,9 +110,9 @@ export const GAME_CONFIG = {
     },
     TYPE_ADVANTAGE: {
         fire: { grass: 2.0, ice: 2.0, bug: 2.0, steel: 2.0, water: 0.5, fire: 0.5, rock: 0.5, dragon: 0.5, ghost: 1.0 },
-        water: { fire: 2.0, ground: 2.0, rock: 2.0, water: 0.5, grass: 0.5, dragon: 0.5 },
-        grass: { water: 2.0, ground: 2.0, rock: 2.0, fire: 0.5, grass: 0.5, poison: 0.5, flying: 0.5, bug: 0.5, dragon: 0.5, steel: 0.5 },
-        electric: { water: 2.0, flying: 2.0, electric: 0.5, grass: 0.5, dragon: 0.5, ground: 0.0 },
+        water: { fire: 2.0, ground: 2.0, rock: 2.0, water: 0.5, grass: 0.5, dragon: 0.5, ghost: 1.0 },
+        grass: { water: 2.0, ground: 2.0, rock: 2.0, fire: 0.5, grass: 0.5, poison: 0.5, flying: 0.5, bug: 0.5, dragon: 0.5, steel: 0.5, ghost: 1.0 },
+        electric: { water: 2.0, flying: 2.0, electric: 0.5, grass: 0.5, dragon: 0.5, ground: 0.0, ghost: 1.0 },
         normal: { rock: 0.5, steel: 0.5, ghost: 0.0 },
     } as Record<string, Record<string, number>>,
 } as const;

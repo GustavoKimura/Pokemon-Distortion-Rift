@@ -60,6 +60,36 @@ export function createDefaultSkill(
 }
 
 export function getDefaultStarterSkills(type: PokemonType): Record<SkillSlot, SkillDefinition> {
+    if (type === 'water') {
+        return {
+            basic: createDefaultSkill('basic', 'water', 'WATER GUN', 40, 'special'),
+            skill1: createDefaultSkill('skill1', 'water', 'BUBBLE BEAM', 70, 'special'),
+            skill2: createDefaultSkill('skill2', 'water', 'AQUA JET', 60, 'physical'),
+            dash: createDefaultSkill('dash', 'water', 'RAPID SPIN', 0, 'physical'),
+            ultimate: createDefaultSkill('ultimate', 'water', 'HYDRO PUMP', 135, 'special'),
+        };
+    }
+
+    if (type === 'grass') {
+        return {
+            basic: createDefaultSkill('basic', 'grass', 'VINE WHIP', 45, 'physical'),
+            skill1: createDefaultSkill('skill1', 'grass', 'RAZOR LEAF', 65, 'physical'),
+            skill2: createDefaultSkill('skill2', 'grass', 'SLUDGE BOMB', 80, 'special'),
+            dash: createDefaultSkill('dash', 'grass', 'TAKE DOWN', 0, 'physical'),
+            ultimate: createDefaultSkill('ultimate', 'grass', 'SOLAR BEAM', 150, 'special'),
+        };
+    }
+
+    if (type === 'electric') {
+        return {
+            basic: createDefaultSkill('basic', 'electric', 'THUNDER SHOCK', 40, 'special'),
+            skill1: createDefaultSkill('skill1', 'electric', 'SPARK', 65, 'physical'),
+            skill2: createDefaultSkill('skill2', 'electric', 'DISCHARGE', 80, 'special'),
+            dash: createDefaultSkill('dash', 'electric', 'QUICK ATTACK', 0, 'physical'),
+            ultimate: createDefaultSkill('ultimate', 'electric', 'THUNDER', 140, 'special'),
+        };
+    }
+
     return {
         basic: createDefaultSkill('basic', 'fire', 'EMBER', 45, 'special'),
         skill1: createDefaultSkill('skill1', 'fire', 'FLAMETHROWER', 85, 'special'),

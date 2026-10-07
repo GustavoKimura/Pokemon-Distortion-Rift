@@ -8,6 +8,8 @@ import { calculateViewportMetrics } from '../utils/viewport';
 import { useGameLoop } from '../viewmodels/useGameLoop';
 import { ArenaView } from './ArenaView';
 import { GameHudView } from './GameHudView';
+import { StarterSelectView } from './StarterSelectView';
+import { MetaProgressionModal } from './MetaProgressionModal';
 import { TouchControlsOverlay } from '../components/controls/TouchControlsOverlay';
 import { logger } from '../utils/logger';
 
@@ -15,10 +17,19 @@ export function GameScreen() {
     const { width, height } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const metrics = calculateViewportMetrics(width, height, insets);
-    const { gameState, setJoystickInput, handleAction, restartGame } = useGameLoop();
+    const {
+        gameState,
+        startRun,
+        upgradeTalent,
+        openMetaTree,
+        closeMetaTree,
+        setJoystickInput,
+        handleAction,
+        restartGame,
+    } = useGameLoop();
 
     useEffect(() => {
-        logger.info('SYSTEM', 'Screen mounted once, locked orientation active');
+        logger.info('SYSTEM', 'GameScreen layout ready');
         if (Platform.OS === 'android') {
             NavigationBar.setVisibilityAsync('hidden').catch(() => { });
         }
@@ -38,35 +49,59 @@ export function GameScreen() {
                     },
                 ]}
             >
-                <ArenaView
-                    player={gameState.player}
-                    enemies={gameState.enemies}
-                    projectiles={gameState.projectiles}
-                    items={gameState.items}
-                    floatingDamages={gameState.floatingDamages}
-                    targetEnemyId={gameState.targetEnemyId}
-                    isBlazeActive={gameState.isBlazeActive}
-                    scale={metrics.scale}
-                />
-
-                <GameHudView
-                    player={gameState.player}
-                    currentWave={gameState.currentWave}
-                    kills={gameState.kills}
-                    fps={gameState.fps}
-                    status={gameState.status}
-                    isBlazeActive={gameState.isBlazeActive}
-                    onRestart={restartGame}
-                    scale={metrics.scale}
-                />
-
-                {gameState.player && gameState.status === 'playing' && (
-                    <TouchControlsOverlay
-                        onJoystickMove={setJoystickInput}
-                        onActionPress={handleAction}
-                        cooldowns={gameState.cooldowns}
-                        ultimateEnergy={gameState.player.ultimateEnergy}
+                {gameState.status === 'select_starter' && (
+                    <StarterSelectView
+                        voidDust={gameState.voidDust}
+                        onSelectStarter={startRun}
+                        onOpenMetaTree={openMetaTree}
+                        scale={metrics.scale}
                     />
+                )}
+
+                {gameState.status === 'meta_tree' && (
+                    <MetaProgressionModal
+                        voidDust={gameState.voidDust}
+                        talents={gameState.talents}
+                        onUpgrade={upgradeTalent}
+                        onClose={closeMetaTree}
+                        scale={metrics.scale}
+                    />
+                )}
+
+                {(gameState.status === 'playing' || gameState.status === 'game_over') && (
+                    <>
+                        <ArenaView
+                            player={gameState.player}
+                            enemies={gameState.enemies}
+                            projectiles={gameState.projectiles}
+                            items={gameState.items}
+                            floatingDamages={gameState.floatingDamages}
+                            targetEnemyId={gameState.targetEnemyId}
+                            isBlazeActive={gameState.isBlazeActive}
+                            scale={metrics.scale}
+                        />
+
+                        <GameHudView
+                            player={gameState.player}
+                            currentWave={gameState.currentWave}
+                            kills={gameState.kills}
+                            voidDust={gameState.voidDust}
+                            fps={gameState.fps}
+                            status={gameState.status}
+                            isBlazeActive={gameState.isBlazeActive}
+                            onRestart={restartGame}
+                            scale={metrics.scale}
+                        />
+
+                        {gameState.player && gameState.status === 'playing' && (
+                            <TouchControlsOverlay
+                                onJoystickMove={setJoystickInput}
+                                onActionPress={handleAction}
+                                cooldowns={gameState.cooldowns}
+                                ultimateEnergy={gameState.player.ultimateEnergy}
+                            />
+                        )}
+                    </>
                 )}
             </View>
         </View>

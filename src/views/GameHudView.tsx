@@ -2,14 +2,15 @@ import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { GAME_CONFIG } from '../config/gameConfig';
 import { PlayerPokemon } from '../models/pokemon';
-import { GameStatus } from '../viewmodels/useGameLoop';
+import { GameMode } from '../viewmodels/useGameLoop';
 
 interface GameHudViewProps {
     player: PlayerPokemon | null;
     currentWave: number;
     kills: number;
+    voidDust: number;
     fps: number;
-    status: GameStatus;
+    status: GameMode;
     isBlazeActive: boolean;
     onRestart: () => void;
     scale: number;
@@ -19,6 +20,7 @@ export function GameHudView({
     player,
     currentWave,
     kills,
+    voidDust,
     fps,
     status,
     isBlazeActive,
@@ -79,6 +81,11 @@ export function GameHudView({
                 )}
 
                 <View style={styles.topRightRow}>
+                    <View style={[styles.dustBadge, { paddingHorizontal: 8 * scale, paddingVertical: 2 * scale }]}>
+                        <Text style={[styles.dustText, { fontSize: Math.max(9, 10 * scale) }]}>
+                            {voidDust} DUST
+                        </Text>
+                    </View>
                     <View style={[styles.fpsBadge, { paddingHorizontal: 6 * scale, paddingVertical: 2 * scale }]}>
                         <Text style={[styles.fpsText, { fontSize: Math.max(9, 10 * scale) }]}>
                             {fps} FPS
@@ -98,9 +105,9 @@ export function GameHudView({
             {status === 'game_over' && (
                 <View style={styles.gameOverOverlay}>
                     <Text style={styles.gameOverTitle}>VOID CONSUMED</Text>
-                    <Text style={styles.gameOverSubtitle}>WAVE REACHED: {currentWave}</Text>
+                    <Text style={styles.gameOverSubtitle}>WAVE REACHED: {currentWave} | DUST COLLECTED: {voidDust}</Text>
                     <TouchableOpacity style={styles.restartButton} onPress={onRestart}>
-                        <Text style={styles.restartButtonText}>ENTER RIFT AGAIN</Text>
+                        <Text style={styles.restartButtonText}>RETURN TO SANCTUARY</Text>
                     </TouchableOpacity>
                 </View>
             )}
@@ -176,7 +183,18 @@ const styles = StyleSheet.create({
     topRightRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        gap: 10,
+        gap: 8,
+    },
+    dustBadge: {
+        backgroundColor: 'rgba(31, 40, 51, 0.85)',
+        borderWidth: 1.5,
+        borderColor: GAME_CONFIG.COLORS.VOID_DUST_GOLD,
+        borderRadius: GAME_CONFIG.UI.BORDER_RADIUS_SM,
+    },
+    dustText: {
+        fontWeight: '900',
+        color: GAME_CONFIG.COLORS.VOID_DUST_GOLD,
+        letterSpacing: 0.8,
     },
     fpsBadge: {
         backgroundColor: 'rgba(31, 40, 51, 0.85)',
@@ -209,7 +227,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(11, 12, 16, 0.92)',
+        backgroundColor: 'rgba(11, 12, 16, 0.94)',
         justifyContent: 'center',
         alignItems: 'center',
     },

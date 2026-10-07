@@ -4,6 +4,7 @@ import { PlayerPokemon } from '../models/pokemon';
 import { Projectile, SkillSlot, PokemonType } from '../models/combat';
 import { Enemy } from '../models/enemy';
 import { ItemDrop } from '../models/item';
+import { MetaTalents } from '../models/starter';
 import { pokeApiService } from '../services/pokeApi';
 import { evolutionService } from '../services/evolutionService';
 import { useCombatEngine } from './useCombatEngine';
@@ -18,7 +19,7 @@ export interface FloatingDamage {
     opacity: number;
 }
 
-export type GameStatus = 'loading' | 'playing' | 'game_over';
+export type GameMode = 'select_starter' | 'meta_tree' | 'playing' | 'game_over';
 
 export interface GameFrameState {
     player: PlayerPokemon | null;
@@ -29,10 +30,12 @@ export interface GameFrameState {
     cooldowns: Record<SkillSlot, number>;
     currentWave: number;
     kills: number;
+    voidDust: number;
     fps: number;
-    status: GameStatus;
+    status: GameMode;
     targetEnemyId: string | null;
     isBlazeActive: boolean;
+    talents: MetaTalents;
 }
 
 const ENEMY_TEMPLATES = [
@@ -52,10 +55,12 @@ export function useGameLoop() {
         cooldowns: { basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0 },
         currentWave: 1,
         kills: 0,
+        voidDust: 0,
         fps: 30,
-        status: 'loading',
+        status: 'select_starter',
         targetEnemyId: null,
         isBlazeActive: false,
+        talents: { vigor: 0, fury: 0, agility: 0, mastery: 0 },
     });
 
     const inputVectorRef = useRef({ x: 0, y: 0 });
@@ -74,18 +79,68 @@ export function useGameLoop() {
     const cooldownsRef = useRef({ basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0 });
     const waveRef = useRef(1);
     const killsRef = useRef(0);
+    const voidDustRef = useRef(0);
     const spawnTimerRef = useRef(0);
-    const statusRef = useRef<GameStatus>('loading');
+    const statusRef = useRef<GameMode>('select_starter');
+    const talentsRef = useRef<MetaTalents>({ vigor: 0, fury: 0, agility: 0, mastery: 0 });
 
     const { calculateDamage, createProjectile } = useCombatEngine();
 
-    useEffect(() => {
-        logger.info('SYSTEM', 'Booting Evolution and Items Matrix');
-        pokeApiService.fetchPokemon('charmander').then(starter => {
+    const startRun = useCallback((pokedexId: number) => {
+        logger.info('SYSTEM', `Starting run with starter #${pokedexId}`);
+        enemiesRef.current = [];
+        projectilesRef.current = [];
+        damagesRef.current = [];
+        itemsRef.current = [];
+        killsRef.current = 0;
+        waveRef.current = 1;
+
+        pokeApiService.fetchPokemon(pokedexId).then(starter => {
+            const t = talentsRef.current;
+            starter.stats.maxHp = Math.round(starter.stats.maxHp * (1 + t.vigor * GAME_CONFIG.META.HP_BONUS_PER_LEVEL));
+            starter.currentHp = starter.stats.maxHp;
+            starter.stats.attack = Math.round(starter.stats.attack * (1 + t.fury * GAME_CONFIG.META.ATK_BONUS_PER_LEVEL));
+            starter.stats.specialAttack = Math.round(starter.stats.specialAttack * (1 + t.fury * GAME_CONFIG.META.ATK_BONUS_PER_LEVEL));
+            starter.stats.speed = Math.round(starter.stats.speed * (1 + t.agility * GAME_CONFIG.META.SPD_BONUS_PER_LEVEL));
+
             playerRef.current = starter;
             statusRef.current = 'playing';
-            setGameState(prev => ({ ...prev, player: starter, status: 'playing' }));
+            setGameState(prev => ({
+                ...prev,
+                player: starter,
+                enemies: [],
+                projectiles: [],
+                items: [],
+                currentWave: 1,
+                kills: 0,
+                status: 'playing',
+            }));
         });
+    }, []);
+
+    const upgradeTalent = useCallback((key: keyof MetaTalents) => {
+        const currentLvl = talentsRef.current[key];
+        if (currentLvl >= GAME_CONFIG.META.TALENT_MAX_LEVEL) return;
+        const cost = (currentLvl + 1) * GAME_CONFIG.META.TALENT_BASE_COST;
+        if (voidDustRef.current < cost) return;
+
+        voidDustRef.current -= cost;
+        talentsRef.current[key] += 1;
+        setGameState(prev => ({
+            ...prev,
+            voidDust: voidDustRef.current,
+            talents: { ...talentsRef.current },
+        }));
+    }, []);
+
+    const openMetaTree = useCallback(() => {
+        statusRef.current = 'meta_tree';
+        setGameState(prev => ({ ...prev, status: 'meta_tree' }));
+    }, []);
+
+    const closeMetaTree = useCallback(() => {
+        statusRef.current = 'select_starter';
+        setGameState(prev => ({ ...prev, status: 'select_starter' }));
     }, []);
 
     const setJoystickInput = useCallback((vector: { x: number; y: number }) => {
@@ -123,7 +178,6 @@ export function useGameLoop() {
         if (slot === 'ultimate') {
             if (p.ultimateEnergy < GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY) return;
             p.ultimateEnergy = 0;
-            logger.info('COMBAT', 'Ultimate unleashed');
         }
 
         const aimAngle = getNearestEnemyAngle(p.position, p.facingAngle);
@@ -162,16 +216,6 @@ export function useGameLoop() {
                 fpsTimerRef.current = now;
             }
 
-            if (now - perfLogTimerRef.current >= GAME_CONFIG.LOGGING.PERF_REPORT_INTERVAL_MS) {
-                perfLogTimerRef.current = now;
-                logger.perf(
-                    'TICK',
-                    fpsValueRef.current,
-                    elapsed,
-                    `Enemies: ${enemiesRef.current.length} | Items: ${itemsRef.current.length} | Wave: ${waveRef.current}`
-                );
-            }
-
             const cd = cooldownsRef.current;
             cd.basic = Math.max(0, cd.basic - dt);
             cd.skill1 = Math.max(0, cd.skill1 - dt);
@@ -188,11 +232,10 @@ export function useGameLoop() {
             let blazeActive = false;
 
             if (p) {
-                blazeActive = p.currentHp <= p.stats.maxHp * GAME_CONFIG.COMBAT.BLAZE_HP_THRESHOLD;
+                blazeActive = p.primaryType === 'fire' && p.currentHp <= p.stats.maxHp * GAME_CONFIG.COMBAT.BLAZE_HP_THRESHOLD;
 
                 const nextEvo = evolutionService.checkEvolution(p.pokedexId, waveRef.current);
                 if (nextEvo) {
-                    logger.info('POKEAPI', `Metamorphosis: ${p.name} -> ${nextEvo.name}!`);
                     p.pokedexId = nextEvo.pokedexId;
                     p.name = nextEvo.name;
                     p.spriteUrl = nextEvo.spriteUrl;
@@ -231,7 +274,6 @@ export function useGameLoop() {
                     if (dist <= GAME_CONFIG.PHYSICS.PLAYER_RADIUS) {
                         if (item.healAmount) {
                             p.currentHp = Math.min(p.stats.maxHp, p.currentHp + item.healAmount);
-                            logger.info('COMBAT', `Consumed ${item.name}, recovered ${item.healAmount} HP`);
                         }
                         return false;
                     }
@@ -249,7 +291,7 @@ export function useGameLoop() {
                 let ey = GAME_CONFIG.PHYSICS.BOUNDARY_PADDING;
                 if (side === 0) { ex = Math.random() * GAME_CONFIG.VIEWPORT.LOGICAL_WIDTH; ey = GAME_CONFIG.PHYSICS.BOUNDARY_PADDING; }
                 else if (side === 1) { ex = GAME_CONFIG.VIEWPORT.LOGICAL_WIDTH - GAME_CONFIG.PHYSICS.BOUNDARY_PADDING; ey = Math.random() * GAME_CONFIG.VIEWPORT.LOGICAL_HEIGHT; }
-                else if (side === 2) { ex = Math.random() * GAME_CONFIG.VIEWPORT.LOGICAL_WIDTH; ey = GAME_CONFIG.VIEWPORT.LOGICAL_HEIGHT - GAME_CONFIG.PHYSICS.BOUNDARY_PADDING; }
+                else if (side === 2) { ex = Math.random() * GAME_CONFIG.VIEWPORT.LOGICAL_WIDTH; ey = GAME_CONFIG.PHYSICS.BOUNDARY_PADDING; }
                 else { ex = GAME_CONFIG.PHYSICS.BOUNDARY_PADDING; ey = Math.random() * GAME_CONFIG.VIEWPORT.LOGICAL_HEIGHT; }
                 const hp = Math.round(t.maxHp * (1 + (waveRef.current - 1) * 0.15) * (isBoss ? 2.5 : 1));
                 enemiesRef.current.push({
@@ -376,6 +418,7 @@ export function useGameLoop() {
             enemiesRef.current = enemiesList.filter(e => {
                 if (e.currentHp <= 0) {
                     killsRef.current += 1;
+                    voidDustRef.current += GAME_CONFIG.META.VOID_DUST_PER_KILL;
                     if (killsRef.current % 8 === 0) waveRef.current += 1;
                     if (p) {
                         p.ultimateEnergy = Math.min(
@@ -413,7 +456,6 @@ export function useGameLoop() {
                     if (dist <= GAME_CONFIG.PHYSICS.PLAYER_RADIUS + enemy.radius) {
                         p.currentHp = Math.max(0, p.currentHp - enemy.attackDamage);
                         p.invulnerableUntilMs = now + GAME_CONFIG.COMBAT.INVULNERABILITY_AFTER_HIT_MS;
-                        logger.warn('COMBAT', `Struck by ${enemy.name}, HP: ${p.currentHp}`);
                         if (p.currentHp <= 0) statusRef.current = 'game_over';
                         break;
                     }
@@ -429,10 +471,12 @@ export function useGameLoop() {
                 cooldowns: { ...cd },
                 currentWave: waveRef.current,
                 kills: killsRef.current,
+                voidDust: voidDustRef.current,
                 fps: fpsValueRef.current,
                 status: statusRef.current,
                 targetEnemyId: closestId,
                 isBlazeActive: blazeActive,
+                talents: { ...talentsRef.current },
             });
 
             animId = requestAnimationFrame(loop);
@@ -443,34 +487,27 @@ export function useGameLoop() {
     }, [calculateDamage, createProjectile, getNearestEnemyAngle]);
 
     const restartGame = useCallback(() => {
-        enemiesRef.current = [];
-        projectilesRef.current = [];
-        damagesRef.current = [];
-        itemsRef.current = [];
-        killsRef.current = 0;
-        waveRef.current = 1;
-        dashTimerRef.current = 0;
-        inputVectorRef.current = { x: 0, y: 0 };
-        pokeApiService.fetchPokemon('charmander').then(starter => {
-            playerRef.current = starter;
-            statusRef.current = 'playing';
-            setGameState(prev => ({
-                ...prev,
-                player: starter,
-                enemies: [],
-                projectiles: [],
-                floatingDamages: [],
-                items: [],
-                currentWave: 1,
-                kills: 0,
-                status: 'playing',
-                isBlazeActive: false,
-            }));
-        });
+        statusRef.current = 'select_starter';
+        setGameState(prev => ({
+            ...prev,
+            status: 'select_starter',
+            player: null,
+            enemies: [],
+            projectiles: [],
+            floatingDamages: [],
+            items: [],
+            currentWave: 1,
+            kills: 0,
+            isBlazeActive: false,
+        }));
     }, []);
 
     return {
         gameState,
+        startRun,
+        upgradeTalent,
+        openMetaTree,
+        closeMetaTree,
         setJoystickInput,
         handleAction,
         restartGame,
