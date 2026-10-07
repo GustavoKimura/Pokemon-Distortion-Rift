@@ -4,14 +4,17 @@ import { GAME_CONFIG } from '../config/gameConfig';
 import { PlayerPokemon } from '../models/pokemon';
 import { Enemy } from '../models/enemy';
 import { Projectile } from '../models/combat';
+import { ItemDrop } from '../models/item';
 import { FloatingDamage } from '../viewmodels/useGameLoop';
 
 interface ArenaViewProps {
     player: PlayerPokemon | null;
     enemies: Enemy[];
     projectiles: Projectile[];
+    items: ItemDrop[];
     floatingDamages: FloatingDamage[];
     targetEnemyId: string | null;
+    isBlazeActive: boolean;
     scale: number;
 }
 
@@ -19,8 +22,10 @@ export function ArenaView({
     player,
     enemies,
     projectiles,
+    items,
     floatingDamages,
     targetEnemyId,
+    isBlazeActive,
     scale,
 }: ArenaViewProps) {
     const isDashing = player?.state === 'dashing';
@@ -28,6 +33,30 @@ export function ArenaView({
     return (
         <View style={styles.arenaContainer}>
             <View style={styles.gridOverlay} />
+
+            {items.map(item => {
+                const size = GAME_CONFIG.ITEMS.SPRITE_SIZE * scale;
+                return (
+                    <View
+                        key={item.id}
+                        style={[
+                            styles.itemContainer,
+                            {
+                                left: item.x * scale - size / 2,
+                                top: item.y * scale - size / 2,
+                                width: size,
+                                height: size,
+                            },
+                        ]}
+                    >
+                        <Image
+                            source={{ uri: item.spriteUrl }}
+                            style={{ width: size, height: size }}
+                            resizeMode="contain"
+                        />
+                    </View>
+                );
+            })}
 
             {projectiles.map(proj => {
                 const size = proj.radius * 2 * scale;
@@ -137,7 +166,11 @@ export function ArenaView({
                                 width: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 2 * scale,
                                 height: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 2 * scale,
                                 borderRadius: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * scale,
-                                borderColor: isDashing ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.HITBOX_PLAYER,
+                                borderColor: isDashing
+                                    ? GAME_CONFIG.COLORS.CRITICAL_TEXT
+                                    : isBlazeActive
+                                        ? GAME_CONFIG.COLORS.BLAZE_AURA
+                                        : GAME_CONFIG.COLORS.HITBOX_PLAYER,
                                 borderStyle: isDashing ? 'solid' : 'dashed',
                             },
                         ]}
@@ -208,6 +241,11 @@ const styles = StyleSheet.create({
         bottom: 0,
         borderWidth: 1,
         borderColor: 'rgba(69, 162, 158, 0.12)',
+    },
+    itemContainer: {
+        position: 'absolute',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     hitboxRing: {
         position: 'absolute',

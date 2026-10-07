@@ -13,6 +13,18 @@ export const GAME_CONFIG = {
         MAX_ENEMIES: 5,
         MAX_PROJECTILES: 4,
         MAX_FLOATING_DAMAGES: 3,
+        MAX_DROPPED_ITEMS: 4,
+    },
+    ITEMS: {
+        DROP_CHANCE: 0.35,
+        PICKUP_RADIUS: 80,
+        SPRITE_SIZE: 20,
+        ORAN_BERRY_HEAL: 45,
+        SITRUS_BERRY_HEAL: 90,
+    },
+    EVOLUTION: {
+        STAGE_2_WAVE: 3,
+        STAGE_3_WAVE: 6,
     },
     PHYSICS: {
         PLAYER_SPEED: 260,
@@ -41,6 +53,8 @@ export const GAME_CONFIG = {
         SKILL_1_COOLDOWN_MS: 2500,
         SKILL_2_COOLDOWN_MS: 5000,
         INVULNERABILITY_AFTER_HIT_MS: 600,
+        BLAZE_HP_THRESHOLD: 0.33,
+        BLAZE_DAMAGE_MULTIPLIER: 1.5,
     },
     CONTROLS: {
         JOYSTICK_BASE_RADIUS: 64,
@@ -72,6 +86,8 @@ export const GAME_CONFIG = {
         HEALTH_BAR: '#E63946',
         SHIELD_DASH: '#457B9D',
         ULTIMATE_GAUGE: '#F4A261',
+        BLAZE_AURA: '#FF5722',
+        EVOLUTION_GLOW: '#FFD166',
         HITBOX_PLAYER: 'rgba(102, 252, 241, 0.45)',
         HITBOX_ENEMY: 'rgba(230, 57, 70, 0.45)',
         TEXT_PRIMARY: '#FFFFFF',

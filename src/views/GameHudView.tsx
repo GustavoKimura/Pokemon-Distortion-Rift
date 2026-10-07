@@ -10,6 +10,7 @@ interface GameHudViewProps {
     kills: number;
     fps: number;
     status: GameStatus;
+    isBlazeActive: boolean;
     onRestart: () => void;
     scale: number;
 }
@@ -20,6 +21,7 @@ export function GameHudView({
     kills,
     fps,
     status,
+    isBlazeActive,
     onRestart,
     scale,
 }: GameHudViewProps) {
@@ -33,9 +35,18 @@ export function GameHudView({
             <View style={[styles.topBar, { paddingHorizontal: 16 * scale, paddingTop: 8 * scale }]} pointerEvents="box-none">
                 {player && (
                     <View style={styles.playerStatsPanel}>
-                        <Text style={[styles.pokemonName, { fontSize: Math.max(10, 12 * scale) }]}>
-                            {player.name}
-                        </Text>
+                        <View style={styles.nameRow}>
+                            <Text style={[styles.pokemonName, { fontSize: Math.max(10, 12 * scale) }]}>
+                                {player.name}
+                            </Text>
+                            {isBlazeActive && (
+                                <View style={styles.blazeBadge}>
+                                    <Text style={[styles.blazeText, { fontSize: Math.max(8, 9 * scale) }]}>
+                                        BLAZE +50%
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
 
                         <View
                             style={[
@@ -113,11 +124,27 @@ const styles = StyleSheet.create({
     playerStatsPanel: {
         alignItems: 'flex-start',
     },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 4,
+    },
     pokemonName: {
         fontWeight: '900',
         color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
         letterSpacing: 1.2,
-        marginBottom: 4,
+    },
+    blazeBadge: {
+        backgroundColor: GAME_CONFIG.COLORS.BLAZE_AURA,
+        borderRadius: 4,
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+    },
+    blazeText: {
+        fontWeight: '900',
+        color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
+        letterSpacing: 0.8,
     },
     barBackground: {
         backgroundColor: 'rgba(31, 40, 51, 0.85)',

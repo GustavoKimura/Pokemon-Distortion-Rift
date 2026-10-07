@@ -42,8 +42,10 @@ export function GameScreen() {
                     player={gameState.player}
                     enemies={gameState.enemies}
                     projectiles={gameState.projectiles}
+                    items={gameState.items}
                     floatingDamages={gameState.floatingDamages}
                     targetEnemyId={gameState.targetEnemyId}
+                    isBlazeActive={gameState.isBlazeActive}
                     scale={metrics.scale}
                 />
 
@@ -53,6 +55,7 @@ export function GameScreen() {
                     kills={gameState.kills}
                     fps={gameState.fps}
                     status={gameState.status}
+                    isBlazeActive={gameState.isBlazeActive}
                     onRestart={restartGame}
                     scale={metrics.scale}
                 />

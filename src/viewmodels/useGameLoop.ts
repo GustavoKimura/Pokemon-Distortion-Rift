@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GAME_CONFIG } from '../config/gameConfig';
 import { PlayerPokemon } from '../models/pokemon';
-import { Projectile, SkillSlot } from '../models/combat';
+import { Projectile, SkillSlot, PokemonType } from '../models/combat';
 import { Enemy } from '../models/enemy';
+import { ItemDrop } from '../models/item';
 import { pokeApiService } from '../services/pokeApi';
+import { evolutionService } from '../services/evolutionService';
 import { useCombatEngine } from './useCombatEngine';
 import { logger } from '../utils/logger';
 
@@ -23,12 +25,14 @@ export interface GameFrameState {
     enemies: Enemy[];
     projectiles: Projectile[];
     floatingDamages: FloatingDamage[];
+    items: ItemDrop[];
     cooldowns: Record<SkillSlot, number>;
     currentWave: number;
     kills: number;
     fps: number;
     status: GameStatus;
     targetEnemyId: string | null;
+    isBlazeActive: boolean;
 }
 
 const ENEMY_TEMPLATES = [
@@ -44,12 +48,14 @@ export function useGameLoop() {
         enemies: [],
         projectiles: [],
         floatingDamages: [],
+        items: [],
         cooldowns: { basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0 },
         currentWave: 1,
         kills: 0,
         fps: 30,
         status: 'loading',
         targetEnemyId: null,
+        isBlazeActive: false,
     });
 
     const inputVectorRef = useRef({ x: 0, y: 0 });
@@ -64,6 +70,7 @@ export function useGameLoop() {
     const enemiesRef = useRef<Enemy[]>([]);
     const projectilesRef = useRef<Projectile[]>([]);
     const damagesRef = useRef<FloatingDamage[]>([]);
+    const itemsRef = useRef<ItemDrop[]>([]);
     const cooldownsRef = useRef({ basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0 });
     const waveRef = useRef(1);
     const killsRef = useRef(0);
@@ -73,12 +80,11 @@ export function useGameLoop() {
     const { calculateDamage, createProjectile } = useCombatEngine();
 
     useEffect(() => {
-        logger.info('SYSTEM', 'Booting Game Engine with safe biometrics');
+        logger.info('SYSTEM', 'Booting Evolution and Items Matrix');
         pokeApiService.fetchPokemon('charmander').then(starter => {
             playerRef.current = starter;
             statusRef.current = 'playing';
             setGameState(prev => ({ ...prev, player: starter, status: 'playing' }));
-            logger.info('SYSTEM', 'Starter loaded successfully');
         });
     }, []);
 
@@ -108,7 +114,6 @@ export function useGameLoop() {
             if (cooldownsRef.current.dash <= 0 && dashTimerRef.current <= 0) {
                 dashTimerRef.current = GAME_CONFIG.PHYSICS.DASH_DURATION_MS;
                 cooldownsRef.current.dash = GAME_CONFIG.PHYSICS.DASH_COOLDOWN_MS;
-                logger.debug('INPUT', 'Dash active');
             }
             return;
         }
@@ -160,10 +165,10 @@ export function useGameLoop() {
             if (now - perfLogTimerRef.current >= GAME_CONFIG.LOGGING.PERF_REPORT_INTERVAL_MS) {
                 perfLogTimerRef.current = now;
                 logger.perf(
-                    'FRAME',
+                    'TICK',
                     fpsValueRef.current,
                     elapsed,
-                    `Enemies: ${enemiesRef.current.length} | Proj: ${projectilesRef.current.length}`
+                    `Enemies: ${enemiesRef.current.length} | Items: ${itemsRef.current.length} | Wave: ${waveRef.current}`
                 );
             }
 
@@ -180,7 +185,27 @@ export function useGameLoop() {
             const speed = isDashing ? GAME_CONFIG.PHYSICS.PLAYER_DASH_SPEED : GAME_CONFIG.PHYSICS.PLAYER_SPEED;
 
             const p = playerRef.current;
+            let blazeActive = false;
+
             if (p) {
+                blazeActive = p.currentHp <= p.stats.maxHp * GAME_CONFIG.COMBAT.BLAZE_HP_THRESHOLD;
+
+                const nextEvo = evolutionService.checkEvolution(p.pokedexId, waveRef.current);
+                if (nextEvo) {
+                    logger.info('POKEAPI', `Metamorphosis: ${p.name} -> ${nextEvo.name}!`);
+                    p.pokedexId = nextEvo.pokedexId;
+                    p.name = nextEvo.name;
+                    p.spriteUrl = nextEvo.spriteUrl;
+                    p.height = nextEvo.height;
+                    p.weight = nextEvo.weight;
+                    p.primaryType = nextEvo.primaryType as PokemonType;
+                    if (nextEvo.secondaryType) p.secondaryType = nextEvo.secondaryType as PokemonType;
+                    p.stats.maxHp += nextEvo.hpBonus;
+                    p.currentHp += nextEvo.hpBonus;
+                    p.stats.attack += nextEvo.attackBonus;
+                    p.stats.specialAttack += nextEvo.specialAttackBonus;
+                }
+
                 const vx = inputVectorRef.current.x * speed;
                 const vy = inputVectorRef.current.y * speed;
                 const hasInput = Math.hypot(inputVectorRef.current.x, inputVectorRef.current.y) > 0.05;
@@ -196,6 +221,22 @@ export function useGameLoop() {
                     Math.max(GAME_CONFIG.PHYSICS.BOUNDARY_PADDING, p.position.y + vy * dtSec)
                 );
                 p.state = isDashing ? 'dashing' : hasInput ? 'walking' : 'idle';
+
+                itemsRef.current = itemsRef.current.filter(item => {
+                    const dist = Math.hypot(p.position.x - item.x, p.position.y - item.y);
+                    if (dist <= GAME_CONFIG.ITEMS.PICKUP_RADIUS) {
+                        item.x += (p.position.x - item.x) * 6 * dtSec;
+                        item.y += (p.position.y - item.y) * 6 * dtSec;
+                    }
+                    if (dist <= GAME_CONFIG.PHYSICS.PLAYER_RADIUS) {
+                        if (item.healAmount) {
+                            p.currentHp = Math.min(p.stats.maxHp, p.currentHp + item.healAmount);
+                            logger.info('COMBAT', `Consumed ${item.name}, recovered ${item.healAmount} HP`);
+                        }
+                        return false;
+                    }
+                    return true;
+                });
             }
 
             spawnTimerRef.current += dt;
@@ -295,10 +336,15 @@ export function useGameLoop() {
                     const dist = Math.hypot(proj.x - enemy.position.x, proj.y - enemy.position.y);
                     if (dist <= proj.radius + enemy.radius) {
                         hit = true;
+                        let finalPower = proj.damage;
+                        if (blazeActive && proj.type === 'fire') {
+                            finalPower = Math.round(finalPower * GAME_CONFIG.COMBAT.BLAZE_DAMAGE_MULTIPLIER);
+                        }
+
                         const dmg = calculateDamage(
                             proj.type,
                             enemy.type,
-                            proj.damage,
+                            finalPower,
                             proj.damageClass,
                             { attack: p?.stats.attack ?? 52, specialAttack: p?.stats.specialAttack ?? 60 },
                             { defense: enemy.defense, specialDefense: enemy.specialDefense }
@@ -337,6 +383,21 @@ export function useGameLoop() {
                             p.ultimateEnergy + GAME_CONFIG.COMBAT.ENERGY_PER_KILL
                         );
                     }
+
+                    if (Math.random() < GAME_CONFIG.ITEMS.DROP_CHANCE && itemsRef.current.length < GAME_CONFIG.LIMITS.MAX_DROPPED_ITEMS) {
+                        const isSitrus = Math.random() < 0.25;
+                        itemsRef.current.push({
+                            id: `item-${Date.now()}-${Math.random()}`,
+                            name: isSitrus ? 'SITRUS BERRY' : 'ORAN BERRY',
+                            category: 'healing',
+                            spriteUrl: isSitrus
+                                ? 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/sitrus-berry.png'
+                                : 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/oran-berry.png',
+                            x: e.position.x,
+                            y: e.position.y,
+                            healAmount: isSitrus ? GAME_CONFIG.ITEMS.SITRUS_BERRY_HEAL : GAME_CONFIG.ITEMS.ORAN_BERRY_HEAL,
+                        });
+                    }
                     return false;
                 }
                 return true;
@@ -364,12 +425,14 @@ export function useGameLoop() {
                 enemies: [...enemiesRef.current],
                 projectiles: [...projectilesRef.current],
                 floatingDamages: [...damagesRef.current],
+                items: [...itemsRef.current],
                 cooldowns: { ...cd },
                 currentWave: waveRef.current,
                 kills: killsRef.current,
                 fps: fpsValueRef.current,
                 status: statusRef.current,
                 targetEnemyId: closestId,
+                isBlazeActive: blazeActive,
             });
 
             animId = requestAnimationFrame(loop);
@@ -383,6 +446,7 @@ export function useGameLoop() {
         enemiesRef.current = [];
         projectilesRef.current = [];
         damagesRef.current = [];
+        itemsRef.current = [];
         killsRef.current = 0;
         waveRef.current = 1;
         dashTimerRef.current = 0;
@@ -396,9 +460,11 @@ export function useGameLoop() {
                 enemies: [],
                 projectiles: [],
                 floatingDamages: [],
+                items: [],
                 currentWave: 1,
                 kills: 0,
                 status: 'playing',
+                isBlazeActive: false,
             }));
         });
     }, []);
