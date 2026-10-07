@@ -9,6 +9,7 @@ import { useGameLoop } from '../viewmodels/useGameLoop';
 import { ArenaView } from './ArenaView';
 import { GameHudView } from './GameHudView';
 import { TouchControlsOverlay } from '../components/controls/TouchControlsOverlay';
+import { logger } from '../utils/logger';
 
 export function GameScreen() {
     const { width, height } = useWindowDimensions();
@@ -17,10 +18,11 @@ export function GameScreen() {
     const { gameState, setJoystickInput, handleAction, restartGame } = useGameLoop();
 
     useEffect(() => {
+        logger.info('SYSTEM', `Screen mounted (${Math.round(width)}x${Math.round(height)})`);
         if (Platform.OS === 'android') {
             NavigationBar.setVisibilityAsync('hidden').catch(() => { });
         }
-    }, []);
+    }, [width, height]);
 
     return (
         <View style={styles.root}>

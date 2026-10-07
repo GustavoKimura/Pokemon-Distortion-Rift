@@ -3,6 +3,7 @@ import { PlayerPokemon, PokemonStats } from '../models/pokemon';
 import { PokemonType, SkillDefinition, SkillSlot } from '../models/combat';
 import { PokeApiPokemonResponse, PokeApiMoveResponse } from '../models/api';
 import { adaptPokeApiMove, getDefaultStarterSkills } from './moveAdapter';
+import { logger } from '../utils/logger';
 
 const POKEAPI_BASE_URL = 'https://pokeapi.co/api/v2';
 
@@ -14,10 +15,12 @@ class PokeApiService {
         const key = String(identifier).toLowerCase();
         const cached = this.pokemonCache.get(key);
         if (cached) {
+            logger.info('POKEAPI', `Serving ${key} from in-memory cache`);
             return cached;
         }
 
         try {
+            logger.info('POKEAPI', `Fetching live data for: ${key}`);
             const response = await fetch(`${POKEAPI_BASE_URL}/pokemon/${key}`);
             if (!response.ok) {
                 throw new Error(`Failed to fetch pokemon: ${response.status}`);
@@ -26,8 +29,10 @@ class PokeApiService {
             const pokemon = await this.transformPokemon(data);
             this.pokemonCache.set(key, pokemon);
             this.pokemonCache.set(String(data.id), pokemon);
+            logger.info('POKEAPI', `Successfully transformed ${pokemon.name} [#${pokemon.pokedexId}]`);
             return pokemon;
-        } catch {
+        } catch (err) {
+            logger.warn('POKEAPI', `Network failure, engaging offline fallback for: ${key}`, err);
             return this.createFallbackPokemon(key);
         }
     }
@@ -80,14 +85,12 @@ class PokeApiService {
         primaryType: PokemonType
     ): Promise<Record<SkillSlot, SkillDefinition>> {
         const defaultSkills = getDefaultStarterSkills(primaryType);
-        if (!moves || moves.length === 0) {
-            return defaultSkills;
-        }
+        if (!moves || moves.length === 0) return defaultSkills;
 
         const slots: SkillSlot[] = ['basic', 'skill1', 'skill2'];
         const resolvedSkills = { ...defaultSkills };
-
         const selectedMoves = moves.slice(0, slots.length);
+
         for (let i = 0; i < selectedMoves.length; i++) {
             const slot = slots[i];
             const moveName = selectedMoves[i].move.name;
@@ -98,20 +101,15 @@ class PokeApiService {
                 resolvedSkills[slot] = defaultSkills[slot];
             }
         }
-
         return resolvedSkills;
     }
 
     private async fetchMove(moveName: string): Promise<PokeApiMoveResponse> {
         const cached = this.moveCache.get(moveName);
-        if (cached) {
-            return cached;
-        }
+        if (cached) return cached;
 
         const response = await fetch(`${POKEAPI_BASE_URL}/move/${moveName}`);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch move: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`Failed to fetch move: ${response.status}`);
         const data: PokeApiMoveResponse = await response.json();
         this.moveCache.set(moveName, data);
         return data;
@@ -125,13 +123,7 @@ class PokeApiService {
             pokedexId: 4,
             name: identifier.toUpperCase(),
             primaryType,
-            stats: {
-                hp: maxHp,
-                maxHp,
-                attack: 52,
-                defense: 43,
-                speed: 65,
-            },
+            stats: { hp: maxHp, maxHp, attack: 52, defense: 43, speed: 65 },
             currentHp: maxHp,
             ultimateEnergy: 0,
             position: {

@@ -5,6 +5,15 @@ export const GAME_CONFIG = {
         TARGET_FPS: 30,
         FRAME_TIME_MS: 1000 / 30,
     },
+    LOGGING: {
+        ENABLED: true,
+        PERF_REPORT_INTERVAL_MS: 1000,
+    },
+    LIMITS: {
+        MAX_ENEMIES: 7,
+        MAX_PROJECTILES: 6,
+        MAX_FLOATING_DAMAGES: 4,
+    },
     PHYSICS: {
         PLAYER_SPEED: 260,
         PLAYER_DASH_SPEED: 620,

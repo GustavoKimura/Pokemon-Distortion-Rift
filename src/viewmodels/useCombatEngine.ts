@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { GAME_CONFIG } from '../config/gameConfig';
 import { PokemonType, SkillDefinition, SkillSlot, Projectile, DamageResult, DamageEffectiveness } from '../models/combat';
 import { Position } from '../models/pokemon';
+import { logger } from '../utils/logger';
 
 export function useCombatEngine() {
     const calculateDamage = useCallback((
@@ -26,6 +27,8 @@ export function useCombatEngine() {
         const baseCalculation = (attackStat / Math.max(1, defenseStat)) * movePower * 0.4;
         const finalDamage = Math.max(1, Math.round(baseCalculation * multiplier));
 
+        logger.debug('COMBAT', `Damage resolved: ${moveType} -> ${targetType} = ${finalDamage} (${effectiveness})`);
+
         return {
             finalDamage,
             effectiveness,
@@ -42,6 +45,8 @@ export function useCombatEngine() {
     ): Projectile => {
         const vx = Math.cos(targetAngle) * skill.projectileSpeed;
         const vy = Math.sin(targetAngle) * skill.projectileSpeed;
+
+        logger.debug('COMBAT', `Projectile spawned: ${skill.name} [Slot: ${slot}]`);
 
         return {
             id: `${slot}-${Date.now()}-${Math.random()}`,

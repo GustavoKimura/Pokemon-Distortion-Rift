@@ -5,6 +5,7 @@ import { Projectile, SkillSlot } from '../models/combat';
 import { Enemy } from '../models/enemy';
 import { pokeApiService } from '../services/pokeApi';
 import { useCombatEngine } from './useCombatEngine';
+import { logger } from '../utils/logger';
 
 export interface FloatingDamage {
     id: string;
@@ -56,6 +57,7 @@ export function useGameLoop() {
     const autoAttackTimerRef = useRef(0);
     const lastTimeRef = useRef(performance.now());
     const fpsTimerRef = useRef(performance.now());
+    const perfLogTimerRef = useRef(performance.now());
     const frameCountRef = useRef(0);
     const fpsValueRef = useRef(30);
 
@@ -72,10 +74,12 @@ export function useGameLoop() {
     const { calculateDamage, createProjectile } = useCombatEngine();
 
     useEffect(() => {
+        logger.info('SYSTEM', 'Initializing Game Engine and loading Charmander');
         pokeApiService.fetchPokemon('charmander').then(starter => {
             playerRef.current = starter;
             statusRef.current = 'playing';
             setGameState(prev => ({ ...prev, player: starter, status: 'playing' }));
+            logger.info('SYSTEM', 'Game loop active at target 30 FPS');
         });
     }, []);
 
@@ -105,6 +109,7 @@ export function useGameLoop() {
             if (cooldownsRef.current.dash <= 0 && dashTimerRef.current <= 0) {
                 dashTimerRef.current = GAME_CONFIG.PHYSICS.DASH_DURATION_MS;
                 cooldownsRef.current.dash = GAME_CONFIG.PHYSICS.DASH_COOLDOWN_MS;
+                logger.debug('INPUT', 'Dash executed');
             }
             return;
         }
@@ -114,13 +119,17 @@ export function useGameLoop() {
         if (slot === 'ultimate') {
             if (p.ultimateEnergy < GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY) return;
             p.ultimateEnergy = 0;
+            logger.info('COMBAT', 'Ultimate discharged');
         }
 
         const aimAngle = getNearestEnemyAngle(p.position, p.facingAngle);
         p.facingAngle = aimAngle;
         cooldownsRef.current[slot] = p.skills[slot].cooldownMs;
         const proj = createProjectile(slot, p.skills[slot], p.position, aimAngle);
-        projectilesRef.current.push(proj);
+
+        if (projectilesRef.current.length < GAME_CONFIG.LIMITS.MAX_PROJECTILES) {
+            projectilesRef.current.push(proj);
+        }
     }, [createProjectile, getNearestEnemyAngle]);
 
     useEffect(() => {
@@ -147,6 +156,16 @@ export function useGameLoop() {
                 fpsValueRef.current = Math.min(30, Math.round((frameCountRef.current * 1000) / (now - fpsTimerRef.current)));
                 frameCountRef.current = 0;
                 fpsTimerRef.current = now;
+            }
+
+            if (now - perfLogTimerRef.current >= GAME_CONFIG.LOGGING.PERF_REPORT_INTERVAL_MS) {
+                perfLogTimerRef.current = now;
+                logger.perf(
+                    'TICK',
+                    fpsValueRef.current,
+                    elapsed,
+                    `Enemies: ${enemiesRef.current.length}/${GAME_CONFIG.LIMITS.MAX_ENEMIES} | Proj: ${projectilesRef.current.length} | Wave: ${waveRef.current}`
+                );
             }
 
             const cd = cooldownsRef.current;
@@ -184,12 +203,14 @@ export function useGameLoop() {
                     autoAttackTimerRef.current = 0;
                     const aim = getNearestEnemyAngle(p.position, p.facingAngle);
                     p.facingAngle = aim;
-                    projectilesRef.current.push(createProjectile('basic', p.skills.basic, p.position, aim));
+                    if (projectilesRef.current.length < GAME_CONFIG.LIMITS.MAX_PROJECTILES) {
+                        projectilesRef.current.push(createProjectile('basic', p.skills.basic, p.position, aim));
+                    }
                 }
             }
 
             spawnTimerRef.current += dt;
-            if (spawnTimerRef.current >= 1800 && enemiesRef.current.length < 10) {
+            if (spawnTimerRef.current >= 1800 && enemiesRef.current.length < GAME_CONFIG.LIMITS.MAX_ENEMIES) {
                 spawnTimerRef.current = 0;
                 const t = ENEMY_TEMPLATES[Math.floor(Math.random() * ENEMY_TEMPLATES.length)];
                 const isBoss = waveRef.current % 5 === 0 && Math.random() < 0.2;
@@ -216,6 +237,7 @@ export function useGameLoop() {
                     isBoss,
                     state: 'chasing',
                 });
+                logger.debug('SPAWNER', `Spawned ${t.name} (Wave ${waveRef.current})`);
             }
 
             let closestId: string | null = null;
@@ -253,14 +275,17 @@ export function useGameLoop() {
                         const angle = Math.atan2(enemy.position.y - proj.y, enemy.position.x - proj.x);
                         enemy.position.x += Math.cos(angle) * GAME_CONFIG.PHYSICS.KNOCKBACK_FORCE * dtSec;
                         enemy.position.y += Math.sin(angle) * GAME_CONFIG.PHYSICS.KNOCKBACK_FORCE * dtSec;
-                        damagesRef.current.push({
-                            id: `d-${Date.now()}-${Math.random()}`,
-                            x: enemy.position.x,
-                            y: enemy.position.y - 12,
-                            damage: dmg.finalDamage,
-                            isCritical: dmg.isCritical,
-                            opacity: 1,
-                        });
+
+                        if (damagesRef.current.length < GAME_CONFIG.LIMITS.MAX_FLOATING_DAMAGES) {
+                            damagesRef.current.push({
+                                id: `d-${Date.now()}-${Math.random()}`,
+                                x: enemy.position.x,
+                                y: enemy.position.y - 12,
+                                damage: dmg.finalDamage,
+                                isCritical: dmg.isCritical,
+                                opacity: 1,
+                            });
+                        }
                         break;
                     }
                 }
@@ -271,7 +296,10 @@ export function useGameLoop() {
             enemiesRef.current = enemiesRef.current.filter(e => {
                 if (e.currentHp <= 0) {
                     killsRef.current += 1;
-                    if (killsRef.current % 10 === 0) waveRef.current += 1;
+                    if (killsRef.current % 10 === 0) {
+                        waveRef.current += 1;
+                        logger.info('SPAWNER', `Advancing to Wave ${waveRef.current}`);
+                    }
                     if (p) {
                         p.ultimateEnergy = Math.min(
                             GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY,
@@ -293,7 +321,11 @@ export function useGameLoop() {
                     if (dist <= GAME_CONFIG.PHYSICS.PLAYER_RADIUS + enemy.radius) {
                         p.currentHp = Math.max(0, p.currentHp - enemy.attackDamage);
                         p.invulnerableUntilMs = now + GAME_CONFIG.COMBAT.INVULNERABILITY_AFTER_HIT_MS;
-                        if (p.currentHp <= 0) statusRef.current = 'game_over';
+                        logger.warn('COMBAT', `Player struck by ${enemy.name}, HP remaining: ${p.currentHp}`);
+                        if (p.currentHp <= 0) {
+                            statusRef.current = 'game_over';
+                            logger.warn('SYSTEM', 'Player defeated, entering Game Over state');
+                        }
                         break;
                     }
                 }
@@ -320,6 +352,7 @@ export function useGameLoop() {
     }, [calculateDamage, createProjectile, getNearestEnemyAngle]);
 
     const restartGame = useCallback(() => {
+        logger.info('SYSTEM', 'Restarting run');
         enemiesRef.current = [];
         projectilesRef.current = [];
         damagesRef.current = [];
