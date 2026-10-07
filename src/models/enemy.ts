@@ -15,6 +15,11 @@ export interface Enemy {
     speed: number;
     radius: number;
     attackDamage: number;
+    defense: number;
+    specialDefense: number;
+    weight: number;
+    height: number;
+    spriteUrl: string;
     isBoss: boolean;
     state: EnemyState;
 }

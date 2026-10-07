@@ -18,10 +18,19 @@ export interface PokeApiMoveSlot {
     move: PokeApiNamedResource;
 }
 
+export interface PokeApiAbilitySlot {
+    ability: PokeApiNamedResource;
+    is_hidden: boolean;
+    slot: number;
+}
+
 export interface PokeApiSprites {
     front_default: string | null;
     other?: {
         'official-artwork'?: {
+            front_default: string | null;
+        };
+        showdown?: {
             front_default: string | null;
         };
     };
@@ -30,10 +39,17 @@ export interface PokeApiSprites {
 export interface PokeApiPokemonResponse {
     id: number;
     name: string;
+    height: number;
+    weight: number;
     types: PokeApiTypeSlot[];
     stats: PokeApiStatSlot[];
     moves: PokeApiMoveSlot[];
+    abilities: PokeApiAbilitySlot[];
     sprites: PokeApiSprites;
+    cries?: {
+        latest?: string;
+        legacy?: string;
+    };
 }
 
 export interface PokeApiMoveResponse {

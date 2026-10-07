@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { GAME_CONFIG } from '../config/gameConfig';
-import { PokemonType, SkillDefinition, SkillSlot, Projectile, DamageResult, DamageEffectiveness } from '../models/combat';
+import { PokemonType, SkillDefinition, SkillSlot, Projectile, DamageResult, DamageEffectiveness, DamageClass } from '../models/combat';
 import { Position } from '../models/pokemon';
 import { logger } from '../utils/logger';
 
@@ -9,8 +9,9 @@ export function useCombatEngine() {
         moveType: PokemonType,
         targetType: PokemonType,
         movePower: number,
-        attackStat: number,
-        defenseStat: number
+        damageClass: DamageClass,
+        attackerStats: { attack: number; specialAttack: number },
+        targetStats: { defense: number; specialDefense: number }
     ): DamageResult => {
         const typeTable = GAME_CONFIG.TYPE_ADVANTAGE as Record<string, Record<string, number>>;
         const multiplier = typeTable[moveType]?.[targetType] ?? GAME_CONFIG.COMBAT.NEUTRAL_MULTIPLIER;
@@ -24,10 +25,13 @@ export function useCombatEngine() {
             effectiveness = 'resisted';
         }
 
-        const baseCalculation = (attackStat / Math.max(1, defenseStat)) * movePower * 0.4;
+        const offensiveStat = damageClass === 'physical' ? attackerStats.attack : attackerStats.specialAttack;
+        const defensiveStat = damageClass === 'physical' ? targetStats.defense : targetStats.specialDefense;
+
+        const baseCalculation = (offensiveStat / Math.max(1, defensiveStat)) * movePower * 0.4;
         const finalDamage = Math.max(1, Math.round(baseCalculation * multiplier));
 
-        logger.debug('COMBAT', `Damage resolved: ${moveType} -> ${targetType} = ${finalDamage} (${effectiveness})`);
+        logger.debug('COMBAT', `${damageClass.toUpperCase()} Hit: ${moveType} vs ${targetType} = ${finalDamage}`);
 
         return {
             finalDamage,
@@ -46,8 +50,6 @@ export function useCombatEngine() {
         const vx = Math.cos(targetAngle) * skill.projectileSpeed;
         const vy = Math.sin(targetAngle) * skill.projectileSpeed;
 
-        logger.debug('COMBAT', `Projectile spawned: ${skill.name} [Slot: ${slot}]`);
-
         return {
             id: `${slot}-${Date.now()}-${Math.random()}`,
             ownerId: 'player',
@@ -58,6 +60,7 @@ export function useCombatEngine() {
             radius: skill.radius,
             damage: skill.power,
             type: skill.type,
+            damageClass: skill.damageClass,
             maxDistance: skill.range,
             distanceTraveled: 0,
         };

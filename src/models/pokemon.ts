@@ -5,6 +5,8 @@ export interface PokemonStats {
     maxHp: number;
     attack: number;
     defense: number;
+    specialAttack: number;
+    specialDefense: number;
     speed: number;
 }
 
@@ -41,4 +43,9 @@ export interface PlayerPokemon {
     state: PokemonActionState;
     skills: Record<SkillSlot, SkillDefinition>;
     invulnerableUntilMs: number;
+    height: number;
+    weight: number;
+    spriteUrl: string;
+    cryUrl?: string;
+    abilityName?: string;
 }

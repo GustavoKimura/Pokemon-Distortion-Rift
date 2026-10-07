@@ -1,5 +1,5 @@
 import { GAME_CONFIG } from '../config/gameConfig';
-import { PokemonType, SkillDefinition, SkillSlot } from '../models/combat';
+import { PokemonType, SkillDefinition, SkillSlot, DamageClass } from '../models/combat';
 import { PokeApiMoveResponse } from '../models/api';
 
 const SLOT_COOLDOWNS: Record<SkillSlot, number> = {
@@ -17,6 +17,8 @@ export function adaptPokeApiMove(
     const basePower = dto.power ?? 45;
     const cooldownMs = SLOT_COOLDOWNS[slot];
     const type = dto.type.name as PokemonType;
+    const damageClass = (dto.damage_class?.name as DamageClass) ?? 'special';
+    const accuracy = dto.accuracy ?? 100;
 
     return {
         id: String(dto.id),
@@ -28,6 +30,8 @@ export function adaptPokeApiMove(
         range: GAME_CONFIG.PHYSICS.PROJECTILE_BASE_SPEED * (cooldownMs / 1000),
         radius: GAME_CONFIG.PHYSICS.PROJECTILE_RADIUS,
         projectileSpeed: GAME_CONFIG.PHYSICS.PROJECTILE_BASE_SPEED,
+        damageClass,
+        accuracy,
     };
 }
 
@@ -35,7 +39,8 @@ export function createDefaultSkill(
     slot: SkillSlot,
     type: PokemonType,
     name: string,
-    power: number
+    power: number,
+    damageClass: DamageClass = 'special'
 ): SkillDefinition {
     const cooldownMs = SLOT_COOLDOWNS[slot];
 
@@ -49,15 +54,17 @@ export function createDefaultSkill(
         range: GAME_CONFIG.PHYSICS.PROJECTILE_BASE_SPEED * (cooldownMs / 1000),
         radius: GAME_CONFIG.PHYSICS.PROJECTILE_RADIUS,
         projectileSpeed: GAME_CONFIG.PHYSICS.PROJECTILE_BASE_SPEED,
+        damageClass,
+        accuracy: 100,
     };
 }
 
 export function getDefaultStarterSkills(type: PokemonType): Record<SkillSlot, SkillDefinition> {
     return {
-        basic: createDefaultSkill('basic', 'fire', 'EMBER', 45),
-        skill1: createDefaultSkill('skill1', 'fire', 'FLAMETHROWER', 85),
-        skill2: createDefaultSkill('skill2', 'fire', 'FIRE SPIN', 60),
-        dash: createDefaultSkill('dash', 'fire', 'FLAME CHARGE', 0),
-        ultimate: createDefaultSkill('ultimate', 'fire', 'FIRE BLAST', 140),
+        basic: createDefaultSkill('basic', 'fire', 'EMBER', 45, 'special'),
+        skill1: createDefaultSkill('skill1', 'fire', 'FLAMETHROWER', 85, 'special'),
+        skill2: createDefaultSkill('skill2', 'fire', 'FIRE SPIN', 60, 'special'),
+        dash: createDefaultSkill('dash', 'fire', 'FLAME CHARGE', 0, 'physical'),
+        ultimate: createDefaultSkill('ultimate', 'fire', 'FIRE BLAST', 140, 'special'),
     };
 }

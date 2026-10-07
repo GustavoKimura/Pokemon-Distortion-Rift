@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text } from 'react-native';
+import { StyleSheet, View, Text, Image } from 'react-native';
 import { GAME_CONFIG } from '../config/gameConfig';
 import { PlayerPokemon } from '../models/pokemon';
 import { Enemy } from '../models/enemy';
@@ -95,21 +95,25 @@ export function ArenaView({
                                 ]}
                             />
                         </View>
-                        <View
-                            style={[
-                                styles.enemyBody,
-                                {
-                                    width: size * 0.8,
-                                    height: size * 0.8,
-                                    borderRadius: (size * 0.8) / 2,
-                                    borderColor: enemy.isBoss ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.ARENA_BORDER,
-                                },
-                            ]}
-                        >
-                            <Text style={[styles.enemyName, { fontSize: Math.max(7, 8 * scale) }]}>
-                                {enemy.name.slice(0, 4)}
-                            </Text>
-                        </View>
+
+                        {enemy.spriteUrl ? (
+                            <Image
+                                source={{ uri: enemy.spriteUrl }}
+                                style={{ width: size * 1.1, height: size * 1.1 }}
+                                resizeMode="contain"
+                            />
+                        ) : (
+                            <View
+                                style={[
+                                    styles.enemyFallback,
+                                    { width: size * 0.8, height: size * 0.8, borderRadius: (size * 0.8) / 2 },
+                                ]}
+                            >
+                                <Text style={[styles.enemyName, { fontSize: Math.max(7, 8 * scale) }]}>
+                                    {enemy.name.slice(0, 4)}
+                                </Text>
+                            </View>
+                        )}
                     </View>
                 );
             })}
@@ -138,22 +142,32 @@ export function ArenaView({
                             },
                         ]}
                     />
-                    <View
-                        style={[
-                            styles.playerBody,
-                            {
-                                width: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 1.6 * scale,
-                                height: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 1.6 * scale,
-                                borderRadius: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 0.8 * scale,
-                                borderColor: isDashing ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.CYAN_ACCENT,
-                                backgroundColor: isDashing ? 'rgba(255, 209, 102, 0.35)' : GAME_CONFIG.COLORS.BUTTON_BG,
-                            },
-                        ]}
-                    >
-                        <Text style={[styles.playerName, { fontSize: Math.max(8, 9 * scale) }]}>
-                            {player.name.slice(0, 5)}
-                        </Text>
-                    </View>
+                    {player.spriteUrl ? (
+                        <Image
+                            source={{ uri: player.spriteUrl }}
+                            style={{
+                                width: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 2.2 * scale,
+                                height: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 2.2 * scale,
+                                opacity: isDashing ? 0.75 : 1,
+                            }}
+                            resizeMode="contain"
+                        />
+                    ) : (
+                        <View
+                            style={[
+                                styles.playerFallback,
+                                {
+                                    width: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 1.6 * scale,
+                                    height: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 1.6 * scale,
+                                    borderRadius: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 0.8 * scale,
+                                },
+                            ]}
+                        >
+                            <Text style={[styles.playerName, { fontSize: Math.max(8, 9 * scale) }]}>
+                                {player.name.slice(0, 5)}
+                            </Text>
+                        </View>
+                    )}
                 </View>
             )}
 
@@ -220,9 +234,10 @@ const styles = StyleSheet.create({
         height: '100%',
         backgroundColor: GAME_CONFIG.COLORS.HEALTH_BAR,
     },
-    enemyBody: {
+    enemyFallback: {
         backgroundColor: GAME_CONFIG.COLORS.ARENA_FLOOR,
         borderWidth: 2,
+        borderColor: GAME_CONFIG.COLORS.ARENA_BORDER,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -235,8 +250,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    playerBody: {
+    playerFallback: {
+        backgroundColor: GAME_CONFIG.COLORS.BUTTON_BG,
         borderWidth: 2.5,
+        borderColor: GAME_CONFIG.COLORS.CYAN_ACCENT,
         justifyContent: 'center',
         alignItems: 'center',
     },

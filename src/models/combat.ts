@@ -19,6 +19,8 @@ export type PokemonType =
 
 export type SkillSlot = 'basic' | 'skill1' | 'skill2' | 'dash' | 'ultimate';
 
+export type DamageClass = 'physical' | 'special' | 'status';
+
 export interface SkillDefinition {
     id: string;
     name: string;
@@ -29,6 +31,8 @@ export interface SkillDefinition {
     range: number;
     radius: number;
     projectileSpeed: number;
+    damageClass: DamageClass;
+    accuracy: number;
 }
 
 export interface Projectile {
@@ -41,6 +45,7 @@ export interface Projectile {
     radius: number;
     damage: number;
     type: PokemonType;
+    damageClass: DamageClass;
     maxDistance: number;
     distanceTraveled: number;
 }

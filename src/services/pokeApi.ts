@@ -47,8 +47,19 @@ class PokeApiService {
             maxHp,
             attack: statsMap.attack ?? 52,
             defense: statsMap.defense ?? 43,
+            specialAttack: statsMap['special-attack'] ?? 60,
+            specialDefense: statsMap['special-defense'] ?? 50,
             speed: statsMap.speed ?? 65,
         };
+
+        const spriteUrl =
+            data.sprites.other?.showdown?.front_default ??
+            data.sprites.other?.['official-artwork']?.front_default ??
+            data.sprites.front_default ??
+            '';
+
+        const abilityName = data.abilities?.[0]?.ability?.name.toUpperCase();
+        const cryUrl = data.cries?.latest;
 
         return {
             id: String(data.id),
@@ -68,6 +79,11 @@ class PokeApiService {
             state: 'idle',
             skills: getDefaultStarterSkills(primaryType),
             invulnerableUntilMs: 0,
+            height: data.height,
+            weight: data.weight,
+            spriteUrl,
+            cryUrl,
+            abilityName,
         };
     }
 
@@ -79,7 +95,15 @@ class PokeApiService {
             pokedexId: 4,
             name: identifier.toUpperCase(),
             primaryType,
-            stats: { hp: maxHp, maxHp, attack: 52, defense: 43, speed: 65 },
+            stats: {
+                hp: maxHp,
+                maxHp,
+                attack: 52,
+                defense: 43,
+                specialAttack: 60,
+                specialDefense: 50,
+                speed: 65,
+            },
             currentHp: maxHp,
             ultimateEnergy: 0,
             position: {
@@ -91,6 +115,9 @@ class PokeApiService {
             state: 'idle',
             skills: getDefaultStarterSkills(primaryType),
             invulnerableUntilMs: 0,
+            height: 6,
+            weight: 85,
+            spriteUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/4.gif',
         };
     }
 }
