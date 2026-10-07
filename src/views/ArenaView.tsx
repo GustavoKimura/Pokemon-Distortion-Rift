@@ -23,6 +23,8 @@ export function ArenaView({
     targetEnemyId,
     scale,
 }: ArenaViewProps) {
+    const isDashing = player?.state === 'dashing';
+
     return (
         <View style={styles.arenaContainer}>
             <View style={styles.gridOverlay} />
@@ -131,7 +133,8 @@ export function ArenaView({
                                 width: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 2 * scale,
                                 height: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 2 * scale,
                                 borderRadius: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * scale,
-                                borderColor: GAME_CONFIG.COLORS.HITBOX_PLAYER,
+                                borderColor: isDashing ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.HITBOX_PLAYER,
+                                borderStyle: isDashing ? 'solid' : 'dashed',
                             },
                         ]}
                     />
@@ -142,7 +145,8 @@ export function ArenaView({
                                 width: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 1.6 * scale,
                                 height: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 1.6 * scale,
                                 borderRadius: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 0.8 * scale,
-                                borderColor: player.state === 'dashing' ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.CYAN_ACCENT,
+                                borderColor: isDashing ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.CYAN_ACCENT,
+                                backgroundColor: isDashing ? 'rgba(255, 209, 102, 0.35)' : GAME_CONFIG.COLORS.BUTTON_BG,
                             },
                         ]}
                     >
@@ -194,7 +198,6 @@ const styles = StyleSheet.create({
     hitboxRing: {
         position: 'absolute',
         borderWidth: 1.5,
-        borderStyle: 'dashed',
     },
     projectile: {
         position: 'absolute',
@@ -233,7 +236,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     playerBody: {
-        backgroundColor: GAME_CONFIG.COLORS.BUTTON_BG,
         borderWidth: 2.5,
         justifyContent: 'center',
         alignItems: 'center',

@@ -2,12 +2,12 @@ export const GAME_CONFIG = {
     VIEWPORT: {
         LOGICAL_WIDTH: 960,
         LOGICAL_HEIGHT: 540,
-        TARGET_FPS: 30,
-        FRAME_TIME_MS: 1000 / 30,
+        TARGET_FPS: 60,
+        FRAME_TIME_MS: 1000 / 60,
     },
     LOGGING: {
-        ENABLED: false,
-        PERF_REPORT_INTERVAL_MS: 2000,
+        ENABLED: true,
+        PERF_REPORT_INTERVAL_MS: 1500,
     },
     LIMITS: {
         MAX_ENEMIES: 5,
@@ -16,8 +16,8 @@ export const GAME_CONFIG = {
     },
     PHYSICS: {
         PLAYER_SPEED: 260,
-        PLAYER_DASH_SPEED: 620,
-        DASH_DURATION_MS: 200,
+        PLAYER_DASH_SPEED: 640,
+        DASH_DURATION_MS: 220,
         DASH_COOLDOWN_MS: 1800,
         ENEMY_BASE_SPEED: 130,
         PROJECTILE_BASE_SPEED: 520,
@@ -37,11 +37,10 @@ export const GAME_CONFIG = {
         ENERGY_PER_BASIC_ATTACK: 15,
         ENERGY_PER_SKILL_HIT: 20,
         ENERGY_PER_KILL: 30,
-        ATTACK_COOLDOWN_MS: 280,
+        ATTACK_COOLDOWN_MS: 260,
         SKILL_1_COOLDOWN_MS: 2500,
         SKILL_2_COOLDOWN_MS: 5000,
         INVULNERABILITY_AFTER_HIT_MS: 600,
-        AUTO_ATTACK_INTERVAL_MS: 600,
     },
     CONTROLS: {
         JOYSTICK_BASE_RADIUS: 64,

@@ -47,19 +47,18 @@ export function useGameLoop() {
         cooldowns: { basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0 },
         currentWave: 1,
         kills: 0,
-        fps: 30,
+        fps: 60,
         status: 'loading',
         targetEnemyId: null,
     });
 
     const inputVectorRef = useRef({ x: 0, y: 0 });
     const dashTimerRef = useRef(0);
-    const autoAttackTimerRef = useRef(0);
     const lastTimeRef = useRef(performance.now());
     const fpsTimerRef = useRef(performance.now());
     const perfLogTimerRef = useRef(performance.now());
     const frameCountRef = useRef(0);
-    const fpsValueRef = useRef(30);
+    const fpsValueRef = useRef(60);
 
     const playerRef = useRef<PlayerPokemon | null>(null);
     const enemiesRef = useRef<Enemy[]>([]);
@@ -74,10 +73,12 @@ export function useGameLoop() {
     const { calculateDamage, createProjectile } = useCombatEngine();
 
     useEffect(() => {
+        logger.info('SYSTEM', 'Booting Game Engine at 60 FPS Target');
         pokeApiService.fetchPokemon('charmander').then(starter => {
             playerRef.current = starter;
             statusRef.current = 'playing';
             setGameState(prev => ({ ...prev, player: starter, status: 'playing' }));
+            logger.info('SYSTEM', 'Starter loaded, loop running');
         });
     }, []);
 
@@ -107,6 +108,7 @@ export function useGameLoop() {
             if (cooldownsRef.current.dash <= 0 && dashTimerRef.current <= 0) {
                 dashTimerRef.current = GAME_CONFIG.PHYSICS.DASH_DURATION_MS;
                 cooldownsRef.current.dash = GAME_CONFIG.PHYSICS.DASH_COOLDOWN_MS;
+                logger.debug('INPUT', 'Dash activated: I-Frames & Phasing ON');
             }
             return;
         }
@@ -116,6 +118,7 @@ export function useGameLoop() {
         if (slot === 'ultimate') {
             if (p.ultimateEnergy < GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY) return;
             p.ultimateEnergy = 0;
+            logger.info('COMBAT', 'Ultimate unleashed');
         }
 
         const aimAngle = getNearestEnemyAngle(p.position, p.facingAngle);
@@ -149,7 +152,7 @@ export function useGameLoop() {
 
             frameCountRef.current += 1;
             if (now - fpsTimerRef.current >= 500) {
-                fpsValueRef.current = Math.min(30, Math.round((frameCountRef.current * 1000) / (now - fpsTimerRef.current)));
+                fpsValueRef.current = Math.min(60, Math.round((frameCountRef.current * 1000) / (now - fpsTimerRef.current)));
                 frameCountRef.current = 0;
                 fpsTimerRef.current = now;
             }
@@ -157,7 +160,7 @@ export function useGameLoop() {
             if (now - perfLogTimerRef.current >= GAME_CONFIG.LOGGING.PERF_REPORT_INTERVAL_MS) {
                 perfLogTimerRef.current = now;
                 logger.perf(
-                    'TICK',
+                    'FRAME',
                     fpsValueRef.current,
                     elapsed,
                     `Enemies: ${enemiesRef.current.length} | Proj: ${projectilesRef.current.length}`
@@ -193,20 +196,10 @@ export function useGameLoop() {
                     Math.max(GAME_CONFIG.PHYSICS.BOUNDARY_PADDING, p.position.y + vy * dtSec)
                 );
                 p.state = isDashing ? 'dashing' : hasInput ? 'walking' : 'idle';
-
-                autoAttackTimerRef.current += dt;
-                if (autoAttackTimerRef.current >= GAME_CONFIG.COMBAT.AUTO_ATTACK_INTERVAL_MS && enemiesRef.current.length > 0) {
-                    autoAttackTimerRef.current = 0;
-                    const aim = getNearestEnemyAngle(p.position, p.facingAngle);
-                    p.facingAngle = aim;
-                    if (projectilesRef.current.length < GAME_CONFIG.LIMITS.MAX_PROJECTILES) {
-                        projectilesRef.current.push(createProjectile('basic', p.skills.basic, p.position, aim));
-                    }
-                }
             }
 
             spawnTimerRef.current += dt;
-            if (spawnTimerRef.current >= 2000 && enemiesRef.current.length < GAME_CONFIG.LIMITS.MAX_ENEMIES) {
+            if (spawnTimerRef.current >= 1800 && enemiesRef.current.length < GAME_CONFIG.LIMITS.MAX_ENEMIES) {
                 spawnTimerRef.current = 0;
                 const t = ENEMY_TEMPLATES[Math.floor(Math.random() * ENEMY_TEMPLATES.length)];
                 const isBoss = waveRef.current % 5 === 0 && Math.random() < 0.2;
@@ -271,6 +264,17 @@ export function useGameLoop() {
                         enemy.position.x += (dx / dist) * enemy.speed * dtSec;
                         enemy.position.y += (dy / dist) * enemy.speed * dtSec;
                     }
+
+                    if (!isDashing) {
+                        const minPlayerDist = GAME_CONFIG.PHYSICS.PLAYER_RADIUS + enemy.radius;
+                        if (dist < minPlayerDist && dist > 0.01) {
+                            const pushDist = minPlayerDist - dist;
+                            const pushNx = dx / dist;
+                            const pushNy = dy / dist;
+                            enemy.position.x -= pushNx * pushDist;
+                            enemy.position.y -= pushNy * pushDist;
+                        }
+                    }
                 }
             }
 
@@ -334,6 +338,7 @@ export function useGameLoop() {
                     if (dist <= GAME_CONFIG.PHYSICS.PLAYER_RADIUS + enemy.radius) {
                         p.currentHp = Math.max(0, p.currentHp - enemy.attackDamage);
                         p.invulnerableUntilMs = now + GAME_CONFIG.COMBAT.INVULNERABILITY_AFTER_HIT_MS;
+                        logger.warn('COMBAT', `Struck by ${enemy.name}, HP: ${p.currentHp}`);
                         if (p.currentHp <= 0) statusRef.current = 'game_over';
                         break;
                     }
@@ -367,7 +372,6 @@ export function useGameLoop() {
         killsRef.current = 0;
         waveRef.current = 1;
         dashTimerRef.current = 0;
-        autoAttackTimerRef.current = 0;
         inputVectorRef.current = { x: 0, y: 0 };
         pokeApiService.fetchPokemon('charmander').then(starter => {
             playerRef.current = starter;
