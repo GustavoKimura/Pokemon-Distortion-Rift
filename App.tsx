@@ -1,9 +1,11 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GAME_CONFIG } from './src/config/gameConfig';
 import { GameScreen } from './src/views/GameScreen';
+
+LogBox.ignoreAllLogs(true);
 
 export default function App() {
     return (

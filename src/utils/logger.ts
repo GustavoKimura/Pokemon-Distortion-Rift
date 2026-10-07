@@ -38,9 +38,9 @@ export const logger = {
     warn(category: LogCategory, message: string, data?: unknown): void {
         if (!GAME_CONFIG.LOGGING.ENABLED) return;
         if (data !== undefined) {
-            console.warn(`[${category}][WARN][${formatTimestamp()}] ${message}`, data);
+            console.log(`[${category}][WARN][${formatTimestamp()}] ${message}`, data);
         } else {
-            console.warn(`[${category}][WARN][${formatTimestamp()}] ${message}`);
+            console.log(`[${category}][WARN][${formatTimestamp()}] ${message}`);
         }
     },
 
