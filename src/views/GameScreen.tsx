@@ -14,21 +14,7 @@ export function GameScreen() {
     const { width, height } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const metrics = calculateViewportMetrics(width, height, insets);
-
-    const {
-        player,
-        enemies,
-        projectiles,
-        floatingDamages,
-        cooldowns,
-        currentWave,
-        kills,
-        fps,
-        status,
-        setJoystickInput,
-        handleAction,
-        restartGame,
-    } = useGameLoop();
+    const { gameState, setJoystickInput, handleAction, restartGame } = useGameLoop();
 
     useEffect(() => {
         if (Platform.OS === 'android') {
@@ -51,29 +37,30 @@ export function GameScreen() {
                 ]}
             >
                 <ArenaView
-                    player={player}
-                    enemies={enemies}
-                    projectiles={projectiles}
-                    floatingDamages={floatingDamages}
+                    player={gameState.player}
+                    enemies={gameState.enemies}
+                    projectiles={gameState.projectiles}
+                    floatingDamages={gameState.floatingDamages}
+                    targetEnemyId={gameState.targetEnemyId}
                     scale={metrics.scale}
                 />
 
                 <GameHudView
-                    player={player}
-                    currentWave={currentWave}
-                    kills={kills}
-                    fps={fps}
-                    status={status}
+                    player={gameState.player}
+                    currentWave={gameState.currentWave}
+                    kills={gameState.kills}
+                    fps={gameState.fps}
+                    status={gameState.status}
                     onRestart={restartGame}
                     scale={metrics.scale}
                 />
 
-                {player && status === 'playing' && (
+                {gameState.player && gameState.status === 'playing' && (
                     <TouchControlsOverlay
                         onJoystickMove={setJoystickInput}
                         onActionPress={handleAction}
-                        cooldowns={cooldowns}
-                        ultimateEnergy={player.ultimateEnergy}
+                        cooldowns={gameState.cooldowns}
+                        ultimateEnergy={gameState.player.ultimateEnergy}
                     />
                 )}
             </View>

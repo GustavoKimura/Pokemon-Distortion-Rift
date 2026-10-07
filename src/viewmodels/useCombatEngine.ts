@@ -1,17 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { GAME_CONFIG } from '../config/gameConfig';
 import { PokemonType, SkillDefinition, SkillSlot, Projectile, DamageResult, DamageEffectiveness } from '../models/combat';
 import { Position } from '../models/pokemon';
 
 export function useCombatEngine() {
-    const [cooldowns, setCooldowns] = useState<Record<SkillSlot, number>>({
-        basic: 0,
-        skill1: 0,
-        skill2: 0,
-        dash: 0,
-        ultimate: 0,
-    });
-
     const calculateDamage = useCallback((
         moveType: PokemonType,
         targetType: PokemonType,
@@ -42,37 +34,14 @@ export function useCombatEngine() {
         };
     }, []);
 
-    const updateCooldowns = useCallback((deltaTimeMs: number) => {
-        setCooldowns(prev => ({
-            basic: Math.max(0, prev.basic - deltaTimeMs),
-            skill1: Math.max(0, prev.skill1 - deltaTimeMs),
-            skill2: Math.max(0, prev.skill2 - deltaTimeMs),
-            dash: Math.max(0, prev.dash - deltaTimeMs),
-            ultimate: Math.max(0, prev.ultimate - deltaTimeMs),
-        }));
-    }, []);
-
-    const triggerSkill = useCallback((
+    const createProjectile = useCallback((
         slot: SkillSlot,
         skill: SkillDefinition,
         position: Position,
-        facingAngle: number
-    ): Projectile | null => {
-        if (cooldowns[slot] > 0) {
-            return null;
-        }
-
-        setCooldowns(prev => ({
-            ...prev,
-            [slot]: skill.cooldownMs,
-        }));
-
-        if (slot === 'dash') {
-            return null;
-        }
-
-        const vx = Math.cos(facingAngle) * skill.projectileSpeed;
-        const vy = Math.sin(facingAngle) * skill.projectileSpeed;
+        targetAngle: number
+    ): Projectile => {
+        const vx = Math.cos(targetAngle) * skill.projectileSpeed;
+        const vy = Math.sin(targetAngle) * skill.projectileSpeed;
 
         return {
             id: `${slot}-${Date.now()}-${Math.random()}`,
@@ -87,12 +56,10 @@ export function useCombatEngine() {
             maxDistance: skill.range,
             distanceTraveled: 0,
         };
-    }, [cooldowns]);
+    }, []);
 
     return {
-        cooldowns,
         calculateDamage,
-        updateCooldowns,
-        triggerSkill,
+        createProjectile,
     };
 }

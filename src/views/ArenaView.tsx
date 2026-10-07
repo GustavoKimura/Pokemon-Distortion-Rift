@@ -11,6 +11,7 @@ interface ArenaViewProps {
     enemies: Enemy[];
     projectiles: Projectile[];
     floatingDamages: FloatingDamage[];
+    targetEnemyId: string | null;
     scale: number;
 }
 
@@ -19,6 +20,7 @@ export function ArenaView({
     enemies,
     projectiles,
     floatingDamages,
+    targetEnemyId,
     scale,
 }: ArenaViewProps) {
     return (
@@ -48,6 +50,7 @@ export function ArenaView({
                 const size = enemy.radius * 2 * scale;
                 const hpPercent = Math.max(0, enemy.currentHp / enemy.maxHp);
                 const hpBarWidth = size * 1.2;
+                const isTargeted = enemy.id === targetEnemyId;
                 return (
                     <View
                         key={enemy.id}
@@ -61,6 +64,20 @@ export function ArenaView({
                             },
                         ]}
                     >
+                        {isTargeted && (
+                            <View
+                                style={[
+                                    styles.targetReticle,
+                                    {
+                                        width: size * 1.4,
+                                        height: size * 1.4,
+                                        left: -size * 0.2,
+                                        top: -size * 0.2,
+                                        borderRadius: (size * 1.4) / 2,
+                                    },
+                                ]}
+                            />
+                        )}
                         <View
                             style={[
                                 styles.enemyHpBarBg,
@@ -165,6 +182,12 @@ const styles = StyleSheet.create({
         bottom: 0,
         borderWidth: 1,
         borderColor: 'rgba(69, 162, 158, 0.12)',
+    },
+    targetReticle: {
+        position: 'absolute',
+        borderWidth: 1.5,
+        borderColor: GAME_CONFIG.COLORS.CRITICAL_TEXT,
+        borderStyle: 'dashed',
     },
     projectile: {
         position: 'absolute',

@@ -17,6 +17,19 @@ export interface FloatingDamage {
 
 export type GameStatus = 'loading' | 'playing' | 'game_over';
 
+export interface GameFrameState {
+    player: PlayerPokemon | null;
+    enemies: Enemy[];
+    projectiles: Projectile[];
+    floatingDamages: FloatingDamage[];
+    cooldowns: Record<SkillSlot, number>;
+    currentWave: number;
+    kills: number;
+    fps: number;
+    status: GameStatus;
+    targetEnemyId: string | null;
+}
+
 const ENEMY_TEMPLATES = [
     { pokedexId: 19, name: 'RATTATA', type: 'normal' as const, maxHp: 80, damage: 12 },
     { pokedexId: 41, name: 'ZUBAT', type: 'poison' as const, maxHp: 95, damage: 15 },
@@ -25,23 +38,25 @@ const ENEMY_TEMPLATES = [
 ];
 
 export function useGameLoop() {
-    const [player, setPlayer] = useState<PlayerPokemon | null>(null);
-    const [enemies, setEnemies] = useState<Enemy[]>([]);
-    const [projectiles, setProjectiles] = useState<Projectile[]>([]);
-    const [floatingDamages, setFloatingDamages] = useState<FloatingDamage[]>([]);
-    const [cooldowns, setCooldowns] = useState<Record<SkillSlot, number>>({
-        basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0,
+    const [gameState, setGameState] = useState<GameFrameState>({
+        player: null,
+        enemies: [],
+        projectiles: [],
+        floatingDamages: [],
+        cooldowns: { basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0 },
+        currentWave: 1,
+        kills: 0,
+        fps: 60,
+        status: 'loading',
+        targetEnemyId: null,
     });
-    const [currentWave, setCurrentWave] = useState(1);
-    const [kills, setKills] = useState(0);
-    const [fps, setFps] = useState(60);
-    const [status, setStatus] = useState<GameStatus>('loading');
 
     const inputVectorRef = useRef({ x: 0, y: 0 });
     const dashTimerRef = useRef(0);
     const lastTimeRef = useRef(performance.now());
     const fpsTimerRef = useRef(performance.now());
     const frameCountRef = useRef(0);
+    const fpsValueRef = useRef(60);
 
     const playerRef = useRef<PlayerPokemon | null>(null);
     const enemiesRef = useRef<Enemy[]>([]);
@@ -51,14 +66,16 @@ export function useGameLoop() {
     const waveRef = useRef(1);
     const killsRef = useRef(0);
     const spawnTimerRef = useRef(0);
+    const targetIdRef = useRef<string | null>(null);
+    const statusRef = useRef<GameStatus>('loading');
 
-    const { calculateDamage, triggerSkill } = useCombatEngine();
+    const { calculateDamage, createProjectile } = useCombatEngine();
 
     useEffect(() => {
         pokeApiService.fetchPokemon('charmander').then(starter => {
             playerRef.current = starter;
-            setPlayer(starter);
-            setStatus('playing');
+            statusRef.current = 'playing';
+            setGameState(prev => ({ ...prev, player: starter, status: 'playing' }));
         });
     }, []);
 
@@ -68,7 +85,7 @@ export function useGameLoop() {
 
     const handleAction = useCallback((slot: SkillSlot) => {
         const p = playerRef.current;
-        if (!p || status !== 'playing') return;
+        if (!p || statusRef.current !== 'playing') return;
 
         if (slot === 'dash') {
             if (cooldownsRef.current.dash <= 0 && dashTimerRef.current <= 0) {
@@ -85,32 +102,49 @@ export function useGameLoop() {
             p.ultimateEnergy = 0;
         }
 
-        cooldownsRef.current[slot] = p.skills[slot].cooldownMs;
-        const proj = triggerSkill(slot, p.skills[slot], p.position, p.facingAngle);
-        if (proj) {
-            projectilesRef.current.push(proj);
-            if (slot === 'basic') {
-                p.ultimateEnergy = Math.min(
-                    GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY,
-                    p.ultimateEnergy + GAME_CONFIG.COMBAT.ENERGY_PER_BASIC_ATTACK
-                );
+        let aimAngle = p.facingAngle;
+        if (enemiesRef.current.length > 0) {
+            let minDist = Infinity;
+            let nearest = enemiesRef.current[0];
+            for (const e of enemiesRef.current) {
+                const d = Math.hypot(e.position.x - p.position.x, e.position.y - p.position.y);
+                if (d < minDist) {
+                    minDist = d;
+                    nearest = e;
+                }
             }
+            aimAngle = Math.atan2(nearest.position.y - p.position.y, nearest.position.x - p.position.x);
+            p.facingAngle = aimAngle;
         }
-    }, [status, triggerSkill]);
+
+        cooldownsRef.current[slot] = p.skills[slot].cooldownMs;
+        const proj = createProjectile(slot, p.skills[slot], p.position, aimAngle);
+        projectilesRef.current.push(proj);
+
+        if (slot === 'basic') {
+            p.ultimateEnergy = Math.min(
+                GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY,
+                p.ultimateEnergy + GAME_CONFIG.COMBAT.ENERGY_PER_BASIC_ATTACK
+            );
+        }
+    }, [createProjectile]);
 
     useEffect(() => {
-        if (status !== 'playing') return;
-
         let animId: number;
 
         const loop = (now: number) => {
+            if (statusRef.current !== 'playing') {
+                animId = requestAnimationFrame(loop);
+                return;
+            }
+
             const dt = Math.min(33, now - lastTimeRef.current);
             lastTimeRef.current = now;
             const dtSec = dt / 1000;
 
             frameCountRef.current += 1;
             if (now - fpsTimerRef.current >= 500) {
-                setFps(Math.round((frameCountRef.current * 1000) / (now - fpsTimerRef.current)));
+                fpsValueRef.current = Math.round((frameCountRef.current * 1000) / (now - fpsTimerRef.current));
                 frameCountRef.current = 0;
                 fpsTimerRef.current = now;
             }
@@ -134,7 +168,7 @@ export function useGameLoop() {
                 const vx = inputVectorRef.current.x * speed;
                 const vy = inputVectorRef.current.y * speed;
                 const hasInput = Math.hypot(inputVectorRef.current.x, inputVectorRef.current.y) > 0.05;
-                if (hasInput) {
+                if (hasInput && enemiesRef.current.length === 0) {
                     p.facingAngle = Math.atan2(inputVectorRef.current.y, inputVectorRef.current.x);
                 }
                 p.position.x = Math.min(
@@ -178,17 +212,24 @@ export function useGameLoop() {
                 });
             }
 
+            let closestId: string | null = null;
+            let minEnemyDist = Infinity;
             if (p) {
                 for (const enemy of enemiesRef.current) {
                     const dx = p.position.x - enemy.position.x;
                     const dy = p.position.y - enemy.position.y;
                     const dist = Math.hypot(dx, dy);
+                    if (dist < minEnemyDist) {
+                        minEnemyDist = dist;
+                        closestId = enemy.id;
+                    }
                     if (dist > 1) {
                         enemy.position.x += (dx / dist) * enemy.speed * dtSec;
                         enemy.position.y += (dy / dist) * enemy.speed * dtSec;
                     }
                 }
             }
+            targetIdRef.current = closestId;
 
             const nextProjs: Projectile[] = [];
             for (const proj of projectilesRef.current) {
@@ -239,27 +280,32 @@ export function useGameLoop() {
                         p.currentHp = Math.max(0, p.currentHp - enemy.attackDamage);
                         p.invulnerableUntilMs = now + GAME_CONFIG.COMBAT.INVULNERABILITY_AFTER_HIT_MS;
                         if (p.currentHp <= 0) {
-                            setStatus('game_over');
+                            statusRef.current = 'game_over';
                         }
                         break;
                     }
                 }
             }
 
-            setPlayer(p ? { ...p } : null);
-            setEnemies([...enemiesRef.current]);
-            setProjectiles([...projectilesRef.current]);
-            setFloatingDamages([...damagesRef.current]);
-            setCooldowns({ ...cd });
-            setCurrentWave(waveRef.current);
-            setKills(killsRef.current);
+            setGameState({
+                player: p ? { ...p } : null,
+                enemies: [...enemiesRef.current],
+                projectiles: [...projectilesRef.current],
+                floatingDamages: [...damagesRef.current],
+                cooldowns: { ...cd },
+                currentWave: waveRef.current,
+                kills: killsRef.current,
+                fps: fpsValueRef.current,
+                status: statusRef.current,
+                targetEnemyId: targetIdRef.current,
+            });
 
             animId = requestAnimationFrame(loop);
         };
 
         animId = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(animId);
-    }, [status, calculateDamage]);
+    }, [calculateDamage]);
 
     const restartGame = useCallback(() => {
         enemiesRef.current = [];
@@ -271,21 +317,22 @@ export function useGameLoop() {
         inputVectorRef.current = { x: 0, y: 0 };
         pokeApiService.fetchPokemon('charmander').then(starter => {
             playerRef.current = starter;
-            setPlayer(starter);
-            setStatus('playing');
+            statusRef.current = 'playing';
+            setGameState(prev => ({
+                ...prev,
+                player: starter,
+                enemies: [],
+                projectiles: [],
+                floatingDamages: [],
+                currentWave: 1,
+                kills: 0,
+                status: 'playing',
+            }));
         });
     }, []);
 
     return {
-        player,
-        enemies,
-        projectiles,
-        floatingDamages,
-        cooldowns,
-        currentWave,
-        kills,
-        fps,
-        status,
+        gameState,
         setJoystickInput,
         handleAction,
         restartGame,
