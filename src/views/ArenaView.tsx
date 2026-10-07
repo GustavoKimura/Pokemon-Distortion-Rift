@@ -4,12 +4,14 @@ import { GAME_CONFIG } from '../config/gameConfig';
 import { PlayerPokemon } from '../models/pokemon';
 import { Enemy } from '../models/enemy';
 import { Projectile } from '../models/combat';
+import { ExpGem } from '../models/roguelike';
 import { FloatingDamage } from '../viewmodels/useGameLoop';
 
 interface ArenaViewProps {
     player: PlayerPokemon | null;
     enemies: Enemy[];
     projectiles: Projectile[];
+    gems: ExpGem[];
     floatingDamages: FloatingDamage[];
     targetEnemyId: string | null;
     scale: number;
@@ -19,6 +21,7 @@ export function ArenaView({
     player,
     enemies,
     projectiles,
+    gems,
     floatingDamages,
     targetEnemyId,
     scale,
@@ -26,6 +29,25 @@ export function ArenaView({
     return (
         <View style={styles.arenaContainer}>
             <View style={styles.gridOverlay} />
+
+            {gems.map(gem => {
+                const size = GAME_CONFIG.PHYSICS.GEM_RADIUS * 2 * scale;
+                return (
+                    <View
+                        key={gem.id}
+                        style={[
+                            styles.gem,
+                            {
+                                left: gem.x * scale - size / 2,
+                                top: gem.y * scale - size / 2,
+                                width: size,
+                                height: size,
+                                borderRadius: size / 2,
+                            },
+                        ]}
+                    />
+                );
+            })}
 
             {projectiles.map(proj => {
                 const size = proj.radius * 2 * scale;
@@ -182,6 +204,12 @@ const styles = StyleSheet.create({
         bottom: 0,
         borderWidth: 1,
         borderColor: 'rgba(69, 162, 158, 0.12)',
+    },
+    gem: {
+        position: 'absolute',
+        backgroundColor: GAME_CONFIG.COLORS.GEM_COLOR,
+        borderWidth: 1,
+        borderColor: GAME_CONFIG.COLORS.TEXT_PRIMARY,
     },
     targetReticle: {
         position: 'absolute',

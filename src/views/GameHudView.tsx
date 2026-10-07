@@ -8,6 +8,9 @@ interface GameHudViewProps {
     player: PlayerPokemon | null;
     currentWave: number;
     kills: number;
+    level: number;
+    currentExp: number;
+    targetExp: number;
     fps: number;
     status: GameStatus;
     onRestart: () => void;
@@ -18,6 +21,9 @@ export function GameHudView({
     player,
     currentWave,
     kills,
+    level,
+    currentExp,
+    targetExp,
     fps,
     status,
     onRestart,
@@ -27,15 +33,22 @@ export function GameHudView({
     const ultimatePercent = player
         ? Math.min(1, player.ultimateEnergy / GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY)
         : 0;
+    const expPercent = Math.min(1, currentExp / targetExp);
 
     return (
         <View style={styles.hudOverlay} pointerEvents="box-none">
-            <View style={[styles.topBar, { paddingHorizontal: 16 * scale, paddingTop: 10 * scale }]} pointerEvents="box-none">
+            <View style={[styles.topBar, { paddingHorizontal: 16 * scale, paddingTop: 8 * scale }]} pointerEvents="box-none">
                 {player && (
                     <View style={styles.playerStatsPanel}>
-                        <Text style={[styles.pokemonName, { fontSize: Math.max(10, 12 * scale) }]}>
-                            {player.name} ({player.primaryType.toUpperCase()})
-                        </Text>
+                        <View style={styles.nameRow}>
+                            <Text style={[styles.pokemonName, { fontSize: Math.max(10, 12 * scale) }]}>
+                                {player.name}
+                            </Text>
+                            <Text style={[styles.levelBadge, { fontSize: Math.max(9, 10 * scale) }]}>
+                                LV.{level}
+                            </Text>
+                        </View>
+
                         <View
                             style={[
                                 styles.barBackground,
@@ -45,12 +58,7 @@ export function GameHudView({
                                 },
                             ]}
                         >
-                            <View
-                                style={[
-                                    styles.hpBarFill,
-                                    { width: `${hpPercent * 100}%` },
-                                ]}
-                            />
+                            <View style={[styles.hpBarFill, { width: `${hpPercent * 100}%` }]} />
                             <Text style={[styles.barText, { fontSize: Math.max(8, 9 * scale) }]}>
                                 {player.currentHp} / {player.stats.maxHp}
                             </Text>
@@ -66,12 +74,20 @@ export function GameHudView({
                                 },
                             ]}
                         >
-                            <View
-                                style={[
-                                    styles.energyBarFill,
-                                    { width: `${ultimatePercent * 100}%` },
-                                ]}
-                            />
+                            <View style={[styles.energyBarFill, { width: `${ultimatePercent * 100}%` }]} />
+                        </View>
+
+                        <View
+                            style={[
+                                styles.expBarBackground,
+                                {
+                                    width: GAME_CONFIG.UI.ENERGY_BAR_WIDTH * scale,
+                                    height: GAME_CONFIG.UI.EXP_BAR_HEIGHT * scale,
+                                    marginTop: 3 * scale,
+                                },
+                            ]}
+                        >
+                            <View style={[styles.expBarFill, { width: `${expPercent * 100}%` }]} />
                         </View>
                     </View>
                 )}
@@ -87,7 +103,7 @@ export function GameHudView({
                             WAVE {currentWave}
                         </Text>
                         <Text style={[styles.killsText, { fontSize: Math.max(9, 10 * scale) }]}>
-                            VOID PURGED: {kills}
+                            PURGED: {kills}
                         </Text>
                     </View>
                 </View>
@@ -96,7 +112,7 @@ export function GameHudView({
             {status === 'game_over' && (
                 <View style={styles.gameOverOverlay}>
                     <Text style={styles.gameOverTitle}>VOID CONSUMED</Text>
-                    <Text style={styles.gameOverSubtitle}>WAVE REACHED: {currentWave}</Text>
+                    <Text style={styles.gameOverSubtitle}>WAVE REACHED: {currentWave} | LEVEL: {level}</Text>
                     <TouchableOpacity style={styles.restartButton} onPress={onRestart}>
                         <Text style={styles.restartButtonText}>ENTER RIFT AGAIN</Text>
                     </TouchableOpacity>
@@ -122,11 +138,23 @@ const styles = StyleSheet.create({
     playerStatsPanel: {
         alignItems: 'flex-start',
     },
+    nameRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 4,
+    },
     pokemonName: {
         fontWeight: '900',
         color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
         letterSpacing: 1.2,
-        marginBottom: 4,
+    },
+    levelBadge: {
+        fontWeight: '900',
+        color: GAME_CONFIG.COLORS.EXP_BAR,
+        backgroundColor: 'rgba(91, 192, 190, 0.2)',
+        paddingHorizontal: 4,
+        borderRadius: 3,
     },
     barBackground: {
         backgroundColor: 'rgba(31, 40, 51, 0.85)',
@@ -149,6 +177,18 @@ const styles = StyleSheet.create({
         left: 0,
         bottom: 0,
         backgroundColor: GAME_CONFIG.COLORS.ULTIMATE_GAUGE,
+    },
+    expBarBackground: {
+        backgroundColor: 'rgba(31, 40, 51, 0.6)',
+        borderRadius: 2,
+        overflow: 'hidden',
+    },
+    expBarFill: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        bottom: 0,
+        backgroundColor: GAME_CONFIG.COLORS.EXP_BAR,
     },
     barText: {
         fontWeight: '800',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { GAME_CONFIG } from '../../config/gameConfig';
 import { SkillSlot } from '../../models/combat';
@@ -12,7 +12,7 @@ interface TouchControlsOverlayProps {
     ultimateEnergy: number;
 }
 
-export function TouchControlsOverlay({
+export const TouchControlsOverlay = memo(function TouchControlsOverlay({
     onJoystickMove,
     onActionPress,
     cooldowns,
@@ -79,7 +79,7 @@ export function TouchControlsOverlay({
             </View>
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     overlay: {
