@@ -64,20 +64,17 @@ export function ArenaView({
                             },
                         ]}
                     >
-                        {isTargeted && (
-                            <View
-                                style={[
-                                    styles.targetReticle,
-                                    {
-                                        width: size * 1.4,
-                                        height: size * 1.4,
-                                        left: -size * 0.2,
-                                        top: -size * 0.2,
-                                        borderRadius: (size * 1.4) / 2,
-                                    },
-                                ]}
-                            />
-                        )}
+                        <View
+                            style={[
+                                styles.hitboxRing,
+                                {
+                                    width: size,
+                                    height: size,
+                                    borderRadius: size / 2,
+                                    borderColor: isTargeted ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.HITBOX_ENEMY,
+                                },
+                            ]}
+                        />
                         <View
                             style={[
                                 styles.enemyHpBarBg,
@@ -100,9 +97,9 @@ export function ArenaView({
                             style={[
                                 styles.enemyBody,
                                 {
-                                    width: size,
-                                    height: size,
-                                    borderRadius: size / 2,
+                                    width: size * 0.8,
+                                    height: size * 0.8,
+                                    borderRadius: (size * 0.8) / 2,
                                     borderColor: enemy.isBoss ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.ARENA_BORDER,
                                 },
                             ]}
@@ -129,11 +126,22 @@ export function ArenaView({
                 >
                     <View
                         style={[
-                            styles.playerBody,
+                            styles.hitboxRing,
                             {
                                 width: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 2 * scale,
                                 height: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 2 * scale,
                                 borderRadius: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * scale,
+                                borderColor: GAME_CONFIG.COLORS.HITBOX_PLAYER,
+                            },
+                        ]}
+                    />
+                    <View
+                        style={[
+                            styles.playerBody,
+                            {
+                                width: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 1.6 * scale,
+                                height: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 1.6 * scale,
+                                borderRadius: GAME_CONFIG.PHYSICS.PLAYER_RADIUS * 0.8 * scale,
                                 borderColor: player.state === 'dashing' ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.CYAN_ACCENT,
                             },
                         ]}
@@ -183,10 +191,9 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: 'rgba(69, 162, 158, 0.12)',
     },
-    targetReticle: {
+    hitboxRing: {
         position: 'absolute',
         borderWidth: 1.5,
-        borderColor: GAME_CONFIG.COLORS.CRITICAL_TEXT,
         borderStyle: 'dashed',
     },
     projectile: {
@@ -197,6 +204,8 @@ const styles = StyleSheet.create({
     },
     enemyContainer: {
         position: 'absolute',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     enemyHpBarBg: {
         position: 'absolute',
@@ -220,6 +229,8 @@ const styles = StyleSheet.create({
     },
     playerContainer: {
         position: 'absolute',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     playerBody: {
         backgroundColor: GAME_CONFIG.COLORS.BUTTON_BG,

@@ -74,12 +74,10 @@ export function useGameLoop() {
     const { calculateDamage, createProjectile } = useCombatEngine();
 
     useEffect(() => {
-        logger.info('SYSTEM', 'Initializing Game Engine and loading Charmander');
         pokeApiService.fetchPokemon('charmander').then(starter => {
             playerRef.current = starter;
             statusRef.current = 'playing';
             setGameState(prev => ({ ...prev, player: starter, status: 'playing' }));
-            logger.info('SYSTEM', 'Game loop active at target 30 FPS');
         });
     }, []);
 
@@ -109,7 +107,6 @@ export function useGameLoop() {
             if (cooldownsRef.current.dash <= 0 && dashTimerRef.current <= 0) {
                 dashTimerRef.current = GAME_CONFIG.PHYSICS.DASH_DURATION_MS;
                 cooldownsRef.current.dash = GAME_CONFIG.PHYSICS.DASH_COOLDOWN_MS;
-                logger.debug('INPUT', 'Dash executed');
             }
             return;
         }
@@ -119,7 +116,6 @@ export function useGameLoop() {
         if (slot === 'ultimate') {
             if (p.ultimateEnergy < GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY) return;
             p.ultimateEnergy = 0;
-            logger.info('COMBAT', 'Ultimate discharged');
         }
 
         const aimAngle = getNearestEnemyAngle(p.position, p.facingAngle);
@@ -164,7 +160,7 @@ export function useGameLoop() {
                     'TICK',
                     fpsValueRef.current,
                     elapsed,
-                    `Enemies: ${enemiesRef.current.length}/${GAME_CONFIG.LIMITS.MAX_ENEMIES} | Proj: ${projectilesRef.current.length} | Wave: ${waveRef.current}`
+                    `Enemies: ${enemiesRef.current.length} | Proj: ${projectilesRef.current.length}`
                 );
             }
 
@@ -210,7 +206,7 @@ export function useGameLoop() {
             }
 
             spawnTimerRef.current += dt;
-            if (spawnTimerRef.current >= 1800 && enemiesRef.current.length < GAME_CONFIG.LIMITS.MAX_ENEMIES) {
+            if (spawnTimerRef.current >= 2000 && enemiesRef.current.length < GAME_CONFIG.LIMITS.MAX_ENEMIES) {
                 spawnTimerRef.current = 0;
                 const t = ENEMY_TEMPLATES[Math.floor(Math.random() * ENEMY_TEMPLATES.length)];
                 const isBoss = waveRef.current % 5 === 0 && Math.random() < 0.2;
@@ -237,13 +233,33 @@ export function useGameLoop() {
                     isBoss,
                     state: 'chasing',
                 });
-                logger.debug('SPAWNER', `Spawned ${t.name} (Wave ${waveRef.current})`);
+            }
+
+            const enemiesList = enemiesRef.current;
+            for (let i = 0; i < enemiesList.length; i++) {
+                for (let j = i + 1; j < enemiesList.length; j++) {
+                    const eA = enemiesList[i];
+                    const eB = enemiesList[j];
+                    const dx = eB.position.x - eA.position.x;
+                    const dy = eB.position.y - eA.position.y;
+                    const dist = Math.hypot(dx, dy);
+                    const minDist = eA.radius + eB.radius;
+                    if (dist < minDist && dist > 0.01) {
+                        const overlap = (minDist - dist) * 0.5;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        eA.position.x -= nx * overlap;
+                        eA.position.y -= ny * overlap;
+                        eB.position.x += nx * overlap;
+                        eB.position.y += ny * overlap;
+                    }
+                }
             }
 
             let closestId: string | null = null;
             let minEnemyDist = Infinity;
             if (p) {
-                for (const enemy of enemiesRef.current) {
+                for (const enemy of enemiesList) {
                     const dx = p.position.x - enemy.position.x;
                     const dy = p.position.y - enemy.position.y;
                     const dist = Math.hypot(dx, dy);
@@ -266,7 +282,7 @@ export function useGameLoop() {
                 if (proj.distanceTraveled >= proj.maxDistance) continue;
 
                 let hit = false;
-                for (const enemy of enemiesRef.current) {
+                for (const enemy of enemiesList) {
                     const dist = Math.hypot(proj.x - enemy.position.x, proj.y - enemy.position.y);
                     if (dist <= proj.radius + enemy.radius) {
                         hit = true;
@@ -293,13 +309,10 @@ export function useGameLoop() {
             }
             projectilesRef.current = nextProjs;
 
-            enemiesRef.current = enemiesRef.current.filter(e => {
+            enemiesRef.current = enemiesList.filter(e => {
                 if (e.currentHp <= 0) {
                     killsRef.current += 1;
-                    if (killsRef.current % 10 === 0) {
-                        waveRef.current += 1;
-                        logger.info('SPAWNER', `Advancing to Wave ${waveRef.current}`);
-                    }
+                    if (killsRef.current % 8 === 0) waveRef.current += 1;
                     if (p) {
                         p.ultimateEnergy = Math.min(
                             GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY,
@@ -321,11 +334,7 @@ export function useGameLoop() {
                     if (dist <= GAME_CONFIG.PHYSICS.PLAYER_RADIUS + enemy.radius) {
                         p.currentHp = Math.max(0, p.currentHp - enemy.attackDamage);
                         p.invulnerableUntilMs = now + GAME_CONFIG.COMBAT.INVULNERABILITY_AFTER_HIT_MS;
-                        logger.warn('COMBAT', `Player struck by ${enemy.name}, HP remaining: ${p.currentHp}`);
-                        if (p.currentHp <= 0) {
-                            statusRef.current = 'game_over';
-                            logger.warn('SYSTEM', 'Player defeated, entering Game Over state');
-                        }
+                        if (p.currentHp <= 0) statusRef.current = 'game_over';
                         break;
                     }
                 }
@@ -352,7 +361,6 @@ export function useGameLoop() {
     }, [calculateDamage, createProjectile, getNearestEnemyAngle]);
 
     const restartGame = useCallback(() => {
-        logger.info('SYSTEM', 'Restarting run');
         enemiesRef.current = [];
         projectilesRef.current = [];
         damagesRef.current = [];

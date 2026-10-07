@@ -14,7 +14,7 @@ export function adaptPokeApiMove(
     dto: PokeApiMoveResponse,
     slot: SkillSlot
 ): SkillDefinition {
-    const basePower = dto.power ?? 40;
+    const basePower = dto.power ?? 45;
     const cooldownMs = SLOT_COOLDOWNS[slot];
     const type = dto.type.name as PokemonType;
 
@@ -54,10 +54,10 @@ export function createDefaultSkill(
 
 export function getDefaultStarterSkills(type: PokemonType): Record<SkillSlot, SkillDefinition> {
     return {
-        basic: createDefaultSkill('basic', 'normal', 'TACKLE', 35),
-        skill1: createDefaultSkill('skill1', type, 'ELEMENTAL BURST', 65),
-        skill2: createDefaultSkill('skill2', type, 'DISTORTION WAVE', 90),
-        dash: createDefaultSkill('dash', 'normal', 'AGILITY DASH', 0),
-        ultimate: createDefaultSkill('ultimate', type, 'DIMENSIONAL CATACLYSM', 180),
+        basic: createDefaultSkill('basic', 'fire', 'EMBER', 45),
+        skill1: createDefaultSkill('skill1', 'fire', 'FLAMETHROWER', 85),
+        skill2: createDefaultSkill('skill2', 'fire', 'FIRE SPIN', 60),
+        dash: createDefaultSkill('dash', 'fire', 'FLAME CHARGE', 0),
+        ultimate: createDefaultSkill('ultimate', 'fire', 'FIRE BLAST', 140),
     };
 }

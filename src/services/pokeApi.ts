@@ -14,25 +14,18 @@ class PokeApiService {
     async fetchPokemon(identifier: string | number): Promise<PlayerPokemon> {
         const key = String(identifier).toLowerCase();
         const cached = this.pokemonCache.get(key);
-        if (cached) {
-            logger.info('POKEAPI', `Serving ${key} from in-memory cache`);
-            return cached;
-        }
+        if (cached) return cached;
 
         try {
-            logger.info('POKEAPI', `Fetching live data for: ${key}`);
             const response = await fetch(`${POKEAPI_BASE_URL}/pokemon/${key}`);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch pokemon: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             const data: PokeApiPokemonResponse = await response.json();
             const pokemon = await this.transformPokemon(data);
             this.pokemonCache.set(key, pokemon);
             this.pokemonCache.set(String(data.id), pokemon);
-            logger.info('POKEAPI', `Successfully transformed ${pokemon.name} [#${pokemon.pokedexId}]`);
             return pokemon;
-        } catch (err) {
-            logger.warn('POKEAPI', `Network failure, engaging offline fallback for: ${key}`, err);
+        } catch {
+            logger.warn('POKEAPI', `Offline fallback for ${key}`);
             return this.createFallbackPokemon(key);
         }
     }
@@ -52,12 +45,10 @@ class PokeApiService {
         const stats: PokemonStats = {
             hp: maxHp,
             maxHp,
-            attack: statsMap.attack ?? 50,
-            defense: statsMap.defense ?? 50,
-            speed: statsMap.speed ?? 50,
+            attack: statsMap.attack ?? 52,
+            defense: statsMap.defense ?? 43,
+            speed: statsMap.speed ?? 65,
         };
-
-        const skills = await this.resolveSkills(data.moves, primaryType);
 
         return {
             id: String(data.id),
@@ -75,44 +66,9 @@ class PokeApiService {
             velocity: { vx: 0, vy: 0 },
             facingAngle: 0,
             state: 'idle',
-            skills,
+            skills: getDefaultStarterSkills(primaryType),
             invulnerableUntilMs: 0,
         };
-    }
-
-    private async resolveSkills(
-        moves: PokeApiPokemonResponse['moves'],
-        primaryType: PokemonType
-    ): Promise<Record<SkillSlot, SkillDefinition>> {
-        const defaultSkills = getDefaultStarterSkills(primaryType);
-        if (!moves || moves.length === 0) return defaultSkills;
-
-        const slots: SkillSlot[] = ['basic', 'skill1', 'skill2'];
-        const resolvedSkills = { ...defaultSkills };
-        const selectedMoves = moves.slice(0, slots.length);
-
-        for (let i = 0; i < selectedMoves.length; i++) {
-            const slot = slots[i];
-            const moveName = selectedMoves[i].move.name;
-            try {
-                const moveData = await this.fetchMove(moveName);
-                resolvedSkills[slot] = adaptPokeApiMove(moveData, slot);
-            } catch {
-                resolvedSkills[slot] = defaultSkills[slot];
-            }
-        }
-        return resolvedSkills;
-    }
-
-    private async fetchMove(moveName: string): Promise<PokeApiMoveResponse> {
-        const cached = this.moveCache.get(moveName);
-        if (cached) return cached;
-
-        const response = await fetch(`${POKEAPI_BASE_URL}/move/${moveName}`);
-        if (!response.ok) throw new Error(`Failed to fetch move: ${response.status}`);
-        const data: PokeApiMoveResponse = await response.json();
-        this.moveCache.set(moveName, data);
-        return data;
     }
 
     private createFallbackPokemon(identifier: string): PlayerPokemon {
