@@ -10,8 +10,8 @@ export function useCombatEngine() {
         targetType: PokemonType,
         movePower: number,
         damageClass: DamageClass,
-        attackerStats: { attack: number; specialAttack: number },
-        targetStats: { defense: number; specialDefense: number }
+        attackerStats: { attack?: number; specialAttack?: number },
+        targetStats: { defense?: number; specialDefense?: number }
     ): DamageResult => {
         const typeTable = GAME_CONFIG.TYPE_ADVANTAGE as Record<string, Record<string, number>>;
         const multiplier = typeTable[moveType]?.[targetType] ?? GAME_CONFIG.COMBAT.NEUTRAL_MULTIPLIER;
@@ -25,13 +25,18 @@ export function useCombatEngine() {
             effectiveness = 'resisted';
         }
 
-        const offensiveStat = damageClass === 'physical' ? attackerStats.attack : attackerStats.specialAttack;
-        const defensiveStat = damageClass === 'physical' ? targetStats.defense : targetStats.specialDefense;
+        const offensiveStat = damageClass === 'physical'
+            ? (attackerStats?.attack ?? 50)
+            : (attackerStats?.specialAttack ?? 60);
+
+        const defensiveStat = damageClass === 'physical'
+            ? (targetStats?.defense ?? 40)
+            : (targetStats?.specialDefense ?? 40);
 
         const baseCalculation = (offensiveStat / Math.max(1, defensiveStat)) * movePower * 0.4;
         const finalDamage = Math.max(1, Math.round(baseCalculation * multiplier));
 
-        logger.debug('COMBAT', `${damageClass.toUpperCase()} Hit: ${moveType} vs ${targetType} = ${finalDamage}`);
+        logger.debug('COMBAT', `${damageClass} Hit: ${moveType} -> ${targetType} = ${finalDamage}`);
 
         return {
             finalDamage,

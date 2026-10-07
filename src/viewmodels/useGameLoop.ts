@@ -32,10 +32,10 @@ export interface GameFrameState {
 }
 
 const ENEMY_TEMPLATES = [
-    { pokedexId: 19, name: 'RATTATA', type: 'normal' as const, maxHp: 80, damage: 12 },
-    { pokedexId: 41, name: 'ZUBAT', type: 'poison' as const, maxHp: 95, damage: 15 },
-    { pokedexId: 92, name: 'GASTLY', type: 'ghost' as const, maxHp: 110, damage: 18 },
-    { pokedexId: 95, name: 'ONIX', type: 'rock' as const, maxHp: 240, damage: 24 },
+    { pokedexId: 19, name: 'RATTATA', type: 'normal' as const, maxHp: 80, attack: 56, defense: 35, specialDefense: 35, weight: 35, height: 3, spriteUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/19.gif' },
+    { pokedexId: 41, name: 'ZUBAT', type: 'poison' as const, maxHp: 95, attack: 45, defense: 35, specialDefense: 40, weight: 75, height: 8, spriteUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/41.gif' },
+    { pokedexId: 92, name: 'GASTLY', type: 'ghost' as const, maxHp: 110, attack: 35, defense: 30, specialDefense: 35, weight: 1, height: 13, spriteUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/92.gif' },
+    { pokedexId: 95, name: 'ONIX', type: 'rock' as const, maxHp: 240, attack: 45, defense: 160, specialDefense: 45, weight: 2100, height: 88, spriteUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/95.gif' },
 ];
 
 export function useGameLoop() {
@@ -73,12 +73,12 @@ export function useGameLoop() {
     const { calculateDamage, createProjectile } = useCombatEngine();
 
     useEffect(() => {
-        logger.info('SYSTEM', 'Booting Game Engine at locked 30 FPS');
+        logger.info('SYSTEM', 'Booting Game Engine with safe biometrics');
         pokeApiService.fetchPokemon('charmander').then(starter => {
             playerRef.current = starter;
             statusRef.current = 'playing';
             setGameState(prev => ({ ...prev, player: starter, status: 'playing' }));
-            logger.info('SYSTEM', 'Starter loaded, loop running stably');
+            logger.info('SYSTEM', 'Starter loaded successfully');
         });
     }, []);
 
@@ -108,7 +108,7 @@ export function useGameLoop() {
             if (cooldownsRef.current.dash <= 0 && dashTimerRef.current <= 0) {
                 dashTimerRef.current = GAME_CONFIG.PHYSICS.DASH_DURATION_MS;
                 cooldownsRef.current.dash = GAME_CONFIG.PHYSICS.DASH_COOLDOWN_MS;
-                logger.debug('INPUT', 'Dash activated: I-Frames & Phasing ON');
+                logger.debug('INPUT', 'Dash active');
             }
             return;
         }
@@ -221,8 +221,13 @@ export function useGameLoop() {
                     position: { x: ex, y: ey },
                     velocity: { vx: 0, vy: 0 },
                     speed: isBoss ? GAME_CONFIG.PHYSICS.ENEMY_BASE_SPEED * 0.8 : GAME_CONFIG.PHYSICS.ENEMY_BASE_SPEED,
-                    radius: isBoss ? GAME_CONFIG.PHYSICS.ENEMY_RADIUS * 1.6 : GAME_CONFIG.PHYSICS.ENEMY_RADIUS,
-                    attackDamage: t.damage,
+                    radius: isBoss ? GAME_CONFIG.PHYSICS.ENEMY_RADIUS * 1.5 : GAME_CONFIG.PHYSICS.ENEMY_RADIUS,
+                    attackDamage: t.attack,
+                    defense: t.defense,
+                    specialDefense: t.specialDefense,
+                    weight: t.weight,
+                    height: t.height,
+                    spriteUrl: t.spriteUrl,
                     isBoss,
                     state: 'chasing',
                 });
@@ -290,11 +295,20 @@ export function useGameLoop() {
                     const dist = Math.hypot(proj.x - enemy.position.x, proj.y - enemy.position.y);
                     if (dist <= proj.radius + enemy.radius) {
                         hit = true;
-                        const dmg = calculateDamage(proj.type, enemy.type, proj.damage, p ? p.stats.attack : 50, enemy.attackDamage);
+                        const dmg = calculateDamage(
+                            proj.type,
+                            enemy.type,
+                            proj.damage,
+                            proj.damageClass,
+                            { attack: p?.stats.attack ?? 52, specialAttack: p?.stats.specialAttack ?? 60 },
+                            { defense: enemy.defense, specialDefense: enemy.specialDefense }
+                        );
                         enemy.currentHp -= dmg.finalDamage;
+
+                        const weightRatio = Math.max(0.3, Math.min(2.0, 85 / Math.max(1, enemy.weight)));
                         const angle = Math.atan2(enemy.position.y - proj.y, enemy.position.x - proj.x);
-                        enemy.position.x += Math.cos(angle) * GAME_CONFIG.PHYSICS.KNOCKBACK_FORCE * dtSec;
-                        enemy.position.y += Math.sin(angle) * GAME_CONFIG.PHYSICS.KNOCKBACK_FORCE * dtSec;
+                        enemy.position.x += Math.cos(angle) * GAME_CONFIG.PHYSICS.KNOCKBACK_FORCE * weightRatio * dtSec;
+                        enemy.position.y += Math.sin(angle) * GAME_CONFIG.PHYSICS.KNOCKBACK_FORCE * weightRatio * dtSec;
 
                         if (damagesRef.current.length < GAME_CONFIG.LIMITS.MAX_FLOATING_DAMAGES) {
                             damagesRef.current.push({
