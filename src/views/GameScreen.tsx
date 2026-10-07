@@ -78,6 +78,8 @@ export function GameScreen() {
                             floatingDamages={gameState.floatingDamages}
                             targetEnemyId={gameState.targetEnemyId}
                             isBlazeActive={gameState.isBlazeActive}
+                            playerAilment={gameState.playerAilment}
+                            enemyAilments={gameState.enemyAilments}
                             scale={metrics.scale}
                         />
 
@@ -89,6 +91,7 @@ export function GameScreen() {
                             fps={gameState.fps}
                             status={gameState.status}
                             isBlazeActive={gameState.isBlazeActive}
+                            playerAilment={gameState.playerAilment}
                             onRestart={restartGame}
                             scale={metrics.scale}
                         />

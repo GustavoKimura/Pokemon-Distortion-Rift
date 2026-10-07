@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { GAME_CONFIG } from '../config/gameConfig';
 import { PlayerPokemon } from '../models/pokemon';
 import { GameMode } from '../viewmodels/useGameLoop';
+import { AilmentType } from '../models/ailment';
 
 interface GameHudViewProps {
     player: PlayerPokemon | null;
@@ -12,6 +13,7 @@ interface GameHudViewProps {
     fps: number;
     status: GameMode;
     isBlazeActive: boolean;
+    playerAilment: AilmentType;
     onRestart: () => void;
     scale: number;
 }
@@ -24,6 +26,7 @@ export function GameHudView({
     fps,
     status,
     isBlazeActive,
+    playerAilment,
     onRestart,
     scale,
 }: GameHudViewProps) {
@@ -45,6 +48,13 @@ export function GameHudView({
                                 <View style={styles.blazeBadge}>
                                     <Text style={[styles.blazeText, { fontSize: Math.max(8, 9 * scale) }]}>
                                         BLAZE +50%
+                                    </Text>
+                                </View>
+                            )}
+                            {playerAilment !== 'none' && (
+                                <View style={styles.ailmentBadge}>
+                                    <Text style={[styles.ailmentText, { fontSize: Math.max(8, 9 * scale) }]}>
+                                        {playerAilment.toUpperCase()}
                                     </Text>
                                 </View>
                             )}
@@ -149,6 +159,17 @@ const styles = StyleSheet.create({
         paddingVertical: 1,
     },
     blazeText: {
+        fontWeight: '900',
+        color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
+        letterSpacing: 0.8,
+    },
+    ailmentBadge: {
+        backgroundColor: GAME_CONFIG.COLORS.AILMENT_BURN,
+        borderRadius: 4,
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+    },
+    ailmentText: {
         fontWeight: '900',
         color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
         letterSpacing: 0.8,

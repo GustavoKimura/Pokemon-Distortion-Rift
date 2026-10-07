@@ -5,6 +5,7 @@ import { PlayerPokemon } from '../models/pokemon';
 import { Enemy } from '../models/enemy';
 import { Projectile } from '../models/combat';
 import { ItemDrop } from '../models/item';
+import { AilmentType } from '../models/ailment';
 import { FloatingDamage } from '../viewmodels/useGameLoop';
 
 interface ArenaViewProps {
@@ -15,6 +16,8 @@ interface ArenaViewProps {
     floatingDamages: FloatingDamage[];
     targetEnemyId: string | null;
     isBlazeActive: boolean;
+    playerAilment: AilmentType;
+    enemyAilments: Record<string, AilmentType>;
     scale: number;
 }
 
@@ -26,9 +29,18 @@ export function ArenaView({
     floatingDamages,
     targetEnemyId,
     isBlazeActive,
+    playerAilment,
+    enemyAilments,
     scale,
 }: ArenaViewProps) {
     const isDashing = player?.state === 'dashing';
+
+    const getAilmentColor = (type: AilmentType) => {
+        if (type === 'burn') return GAME_CONFIG.COLORS.AILMENT_BURN;
+        if (type === 'paralysis') return GAME_CONFIG.COLORS.AILMENT_PARALYSIS;
+        if (type === 'poison') return GAME_CONFIG.COLORS.AILMENT_POISON;
+        return 'transparent';
+    };
 
     return (
         <View style={styles.arenaContainer}>
@@ -82,6 +94,9 @@ export function ArenaView({
                 const hpPercent = Math.max(0, enemy.currentHp / enemy.maxHp);
                 const hpBarWidth = size * 1.2;
                 const isTargeted = enemy.id === targetEnemyId;
+                const ailment = enemyAilments[enemy.id] ?? 'none';
+                const hasAilment = ailment !== 'none';
+
                 return (
                     <View
                         key={enemy.id}
@@ -102,7 +117,11 @@ export function ArenaView({
                                     width: size,
                                     height: size,
                                     borderRadius: size / 2,
-                                    borderColor: isTargeted ? GAME_CONFIG.COLORS.CRITICAL_TEXT : GAME_CONFIG.COLORS.HITBOX_ENEMY,
+                                    borderColor: isTargeted
+                                        ? GAME_CONFIG.COLORS.CRITICAL_TEXT
+                                        : hasAilment
+                                            ? getAilmentColor(ailment)
+                                            : GAME_CONFIG.COLORS.HITBOX_ENEMY,
                                 },
                             ]}
                         />
@@ -170,7 +189,9 @@ export function ArenaView({
                                     ? GAME_CONFIG.COLORS.CRITICAL_TEXT
                                     : isBlazeActive
                                         ? GAME_CONFIG.COLORS.BLAZE_AURA
-                                        : GAME_CONFIG.COLORS.HITBOX_PLAYER,
+                                        : playerAilment !== 'none'
+                                            ? getAilmentColor(playerAilment)
+                                            : GAME_CONFIG.COLORS.HITBOX_PLAYER,
                                 borderStyle: isDashing ? 'solid' : 'dashed',
                             },
                         ]}

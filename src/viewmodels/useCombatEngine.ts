@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { GAME_CONFIG } from '../config/gameConfig';
 import { PokemonType, SkillDefinition, SkillSlot, Projectile, DamageResult, DamageEffectiveness, DamageClass } from '../models/combat';
 import { Position } from '../models/pokemon';
+import { AilmentType, ActiveAilment } from '../models/ailment';
 import { logger } from '../utils/logger';
 
 export function useCombatEngine() {
@@ -36,13 +37,43 @@ export function useCombatEngine() {
         const baseCalculation = (offensiveStat / Math.max(1, defensiveStat)) * movePower * 0.4;
         const finalDamage = Math.max(1, Math.round(baseCalculation * multiplier));
 
-        logger.debug('COMBAT', `${damageClass} Hit: ${moveType} -> ${targetType} = ${finalDamage}`);
-
         return {
             finalDamage,
             effectiveness,
             isCritical: multiplier >= GAME_CONFIG.COMBAT.EFFECTIVE_MULTIPLIER,
             multiplier,
+        };
+    }, []);
+
+    const resolveAilmentProc = useCallback((moveType: PokemonType): ActiveAilment | null => {
+        if (Math.random() > GAME_CONFIG.AILMENTS.PROC_CHANCE) return null;
+
+        let type: AilmentType = 'none';
+        let dps: number = 0;
+        let interval: number = GAME_CONFIG.AILMENTS.BURN_TICK_INTERVAL_MS;
+
+        if (moveType === 'fire') {
+            type = 'burn';
+            dps = GAME_CONFIG.AILMENTS.BURN_DAMAGE;
+            interval = GAME_CONFIG.AILMENTS.BURN_TICK_INTERVAL_MS;
+        } else if (moveType === 'electric') {
+            type = 'paralysis';
+            dps = 0;
+        } else if (moveType === 'poison' || moveType === 'grass') {
+            type = 'poison';
+            dps = GAME_CONFIG.AILMENTS.POISON_DAMAGE;
+            interval = GAME_CONFIG.AILMENTS.POISON_TICK_INTERVAL_MS;
+        }
+
+        if (type === 'none') return null;
+
+        logger.info('COMBAT', `Ailment inflicted: ${type.toUpperCase()}`);
+
+        return {
+            type,
+            durationMs: GAME_CONFIG.AILMENTS.DEFAULT_DURATION_MS,
+            tickTimerMs: interval,
+            damagePerTick: dps,
         };
     }, []);
 
@@ -73,6 +104,7 @@ export function useCombatEngine() {
 
     return {
         calculateDamage,
+        resolveAilmentProc,
         createProjectile,
     };
 }

@@ -5,6 +5,7 @@ import { Projectile, SkillSlot, PokemonType } from '../models/combat';
 import { Enemy } from '../models/enemy';
 import { ItemDrop } from '../models/item';
 import { MetaTalents } from '../models/starter';
+import { ActiveAilment, AilmentType } from '../models/ailment';
 import { pokeApiService } from '../services/pokeApi';
 import { evolutionService } from '../services/evolutionService';
 import { useCombatEngine } from './useCombatEngine';
@@ -36,6 +37,8 @@ export interface GameFrameState {
     targetEnemyId: string | null;
     isBlazeActive: boolean;
     talents: MetaTalents;
+    playerAilment: AilmentType;
+    enemyAilments: Record<string, AilmentType>;
 }
 
 const ENEMY_TEMPLATES = [
@@ -61,6 +64,8 @@ export function useGameLoop() {
         targetEnemyId: null,
         isBlazeActive: false,
         talents: { vigor: 0, fury: 0, agility: 0, mastery: 0 },
+        playerAilment: 'none',
+        enemyAilments: {},
     });
 
     const inputVectorRef = useRef({ x: 0, y: 0 });
@@ -84,14 +89,18 @@ export function useGameLoop() {
     const statusRef = useRef<GameMode>('select_starter');
     const talentsRef = useRef<MetaTalents>({ vigor: 0, fury: 0, agility: 0, mastery: 0 });
 
-    const { calculateDamage, createProjectile } = useCombatEngine();
+    const playerAilmentRef = useRef<ActiveAilment | null>(null);
+    const enemyAilmentsRef = useRef<Map<string, ActiveAilment>>(new Map());
+
+    const { calculateDamage, resolveAilmentProc, createProjectile } = useCombatEngine();
 
     const startRun = useCallback((pokedexId: number) => {
-        logger.info('SYSTEM', `Starting run with starter #${pokedexId}`);
         enemiesRef.current = [];
         projectilesRef.current = [];
         damagesRef.current = [];
         itemsRef.current = [];
+        enemyAilmentsRef.current.clear();
+        playerAilmentRef.current = null;
         killsRef.current = 0;
         waveRef.current = 1;
 
@@ -114,6 +123,8 @@ export function useGameLoop() {
                 currentWave: 1,
                 kills: 0,
                 status: 'playing',
+                playerAilment: 'none',
+                enemyAilments: {},
             }));
         });
     }, []);
@@ -216,6 +227,16 @@ export function useGameLoop() {
                 fpsTimerRef.current = now;
             }
 
+            if (now - perfLogTimerRef.current >= GAME_CONFIG.LOGGING.PERF_REPORT_INTERVAL_MS) {
+                perfLogTimerRef.current = now;
+                logger.perf(
+                    'FRAME',
+                    fpsValueRef.current,
+                    elapsed,
+                    `Enemies: ${enemiesRef.current.length} | Items: ${itemsRef.current.length}`
+                );
+            }
+
             const cd = cooldownsRef.current;
             cd.basic = Math.max(0, cd.basic - dt);
             cd.skill1 = Math.max(0, cd.skill1 - dt);
@@ -226,13 +247,29 @@ export function useGameLoop() {
             if (dashTimerRef.current > 0) dashTimerRef.current = Math.max(0, dashTimerRef.current - dt);
 
             const isDashing = dashTimerRef.current > 0;
-            const speed = isDashing ? GAME_CONFIG.PHYSICS.PLAYER_DASH_SPEED : GAME_CONFIG.PHYSICS.PLAYER_SPEED;
+            const isPlayerParalyzed = playerAilmentRef.current?.type === 'paralysis';
+            const playerSpeedMod = isPlayerParalyzed ? GAME_CONFIG.AILMENTS.PARALYSIS_SPEED_PENALTY : 1;
+            const speed = (isDashing ? GAME_CONFIG.PHYSICS.PLAYER_DASH_SPEED : GAME_CONFIG.PHYSICS.PLAYER_SPEED) * playerSpeedMod;
 
             const p = playerRef.current;
             let blazeActive = false;
 
             if (p) {
                 blazeActive = p.primaryType === 'fire' && p.currentHp <= p.stats.maxHp * GAME_CONFIG.COMBAT.BLAZE_HP_THRESHOLD;
+
+                if (playerAilmentRef.current) {
+                    const pa = playerAilmentRef.current;
+                    pa.durationMs -= dt;
+                    if (pa.damagePerTick > 0) {
+                        pa.tickTimerMs -= dt;
+                        if (pa.tickTimerMs <= 0) {
+                            pa.tickTimerMs = GAME_CONFIG.AILMENTS.BURN_TICK_INTERVAL_MS;
+                            p.currentHp = Math.max(0, p.currentHp - pa.damagePerTick);
+                            if (p.currentHp <= 0) statusRef.current = 'game_over';
+                        }
+                    }
+                    if (pa.durationMs <= 0) playerAilmentRef.current = null;
+                }
 
                 const nextEvo = evolutionService.checkEvolution(p.pokedexId, waveRef.current);
                 if (nextEvo) {
@@ -341,6 +378,21 @@ export function useGameLoop() {
             let minEnemyDist = Infinity;
             if (p) {
                 for (const enemy of enemiesList) {
+                    const ailment = enemyAilmentsRef.current.get(enemy.id);
+                    let enemySpeedMod = 1;
+                    if (ailment) {
+                        ailment.durationMs -= dt;
+                        if (ailment.type === 'paralysis') enemySpeedMod = GAME_CONFIG.AILMENTS.PARALYSIS_SPEED_PENALTY;
+                        if (ailment.damagePerTick > 0) {
+                            ailment.tickTimerMs -= dt;
+                            if (ailment.tickTimerMs <= 0) {
+                                ailment.tickTimerMs = GAME_CONFIG.AILMENTS.BURN_TICK_INTERVAL_MS;
+                                enemy.currentHp -= ailment.damagePerTick;
+                            }
+                        }
+                        if (ailment.durationMs <= 0) enemyAilmentsRef.current.delete(enemy.id);
+                    }
+
                     const dx = p.position.x - enemy.position.x;
                     const dy = p.position.y - enemy.position.y;
                     const dist = Math.hypot(dx, dy);
@@ -349,8 +401,8 @@ export function useGameLoop() {
                         closestId = enemy.id;
                     }
                     if (dist > 1) {
-                        enemy.position.x += (dx / dist) * enemy.speed * dtSec;
-                        enemy.position.y += (dy / dist) * enemy.speed * dtSec;
+                        enemy.position.x += (dx / dist) * enemy.speed * enemySpeedMod * dtSec;
+                        enemy.position.y += (dy / dist) * enemy.speed * enemySpeedMod * dtSec;
                     }
 
                     if (!isDashing) {
@@ -393,6 +445,9 @@ export function useGameLoop() {
                         );
                         enemy.currentHp -= dmg.finalDamage;
 
+                        const proc = resolveAilmentProc(proj.type);
+                        if (proc) enemyAilmentsRef.current.set(enemy.id, proc);
+
                         const weightRatio = Math.max(0.3, Math.min(2.0, 85 / Math.max(1, enemy.weight)));
                         const angle = Math.atan2(enemy.position.y - proj.y, enemy.position.x - proj.x);
                         enemy.position.x += Math.cos(angle) * GAME_CONFIG.PHYSICS.KNOCKBACK_FORCE * weightRatio * dtSec;
@@ -419,6 +474,7 @@ export function useGameLoop() {
                 if (e.currentHp <= 0) {
                     killsRef.current += 1;
                     voidDustRef.current += GAME_CONFIG.META.VOID_DUST_PER_KILL;
+                    enemyAilmentsRef.current.delete(e.id);
                     if (killsRef.current % 8 === 0) waveRef.current += 1;
                     if (p) {
                         p.ultimateEnergy = Math.min(
@@ -462,6 +518,11 @@ export function useGameLoop() {
                 }
             }
 
+            const enemyAilmentSnapshot: Record<string, AilmentType> = {};
+            enemyAilmentsRef.current.forEach((val, key) => {
+                enemyAilmentSnapshot[key] = val.type;
+            });
+
             setGameState({
                 player: p ? { ...p } : null,
                 enemies: [...enemiesRef.current],
@@ -477,6 +538,8 @@ export function useGameLoop() {
                 targetEnemyId: closestId,
                 isBlazeActive: blazeActive,
                 talents: { ...talentsRef.current },
+                playerAilment: playerAilmentRef.current?.type ?? 'none',
+                enemyAilments: enemyAilmentSnapshot,
             });
 
             animId = requestAnimationFrame(loop);
@@ -484,7 +547,7 @@ export function useGameLoop() {
 
         animId = requestAnimationFrame(loop);
         return () => cancelAnimationFrame(animId);
-    }, [calculateDamage, createProjectile, getNearestEnemyAngle]);
+    }, [calculateDamage, createProjectile, resolveAilmentProc, getNearestEnemyAngle]);
 
     const restartGame = useCallback(() => {
         statusRef.current = 'select_starter';
@@ -499,6 +562,8 @@ export function useGameLoop() {
             currentWave: 1,
             kills: 0,
             isBlazeActive: false,
+            playerAilment: 'none',
+            enemyAilments: {},
         }));
     }, []);
 
