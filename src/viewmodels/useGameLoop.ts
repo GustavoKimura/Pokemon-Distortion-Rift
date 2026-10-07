@@ -47,7 +47,7 @@ export function useGameLoop() {
         cooldowns: { basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0 },
         currentWave: 1,
         kills: 0,
-        fps: 60,
+        fps: 30,
         status: 'loading',
         targetEnemyId: null,
     });
@@ -58,7 +58,7 @@ export function useGameLoop() {
     const fpsTimerRef = useRef(performance.now());
     const perfLogTimerRef = useRef(performance.now());
     const frameCountRef = useRef(0);
-    const fpsValueRef = useRef(60);
+    const fpsValueRef = useRef(30);
 
     const playerRef = useRef<PlayerPokemon | null>(null);
     const enemiesRef = useRef<Enemy[]>([]);
@@ -73,12 +73,12 @@ export function useGameLoop() {
     const { calculateDamage, createProjectile } = useCombatEngine();
 
     useEffect(() => {
-        logger.info('SYSTEM', 'Booting Game Engine at 60 FPS Target');
+        logger.info('SYSTEM', 'Booting Game Engine at locked 30 FPS');
         pokeApiService.fetchPokemon('charmander').then(starter => {
             playerRef.current = starter;
             statusRef.current = 'playing';
             setGameState(prev => ({ ...prev, player: starter, status: 'playing' }));
-            logger.info('SYSTEM', 'Starter loaded, loop running');
+            logger.info('SYSTEM', 'Starter loaded, loop running stably');
         });
     }, []);
 
@@ -152,7 +152,7 @@ export function useGameLoop() {
 
             frameCountRef.current += 1;
             if (now - fpsTimerRef.current >= 500) {
-                fpsValueRef.current = Math.min(60, Math.round((frameCountRef.current * 1000) / (now - fpsTimerRef.current)));
+                fpsValueRef.current = Math.min(30, Math.round((frameCountRef.current * 1000) / (now - fpsTimerRef.current)));
                 frameCountRef.current = 0;
                 fpsTimerRef.current = now;
             }

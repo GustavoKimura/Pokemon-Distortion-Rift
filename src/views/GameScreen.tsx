@@ -18,11 +18,11 @@ export function GameScreen() {
     const { gameState, setJoystickInput, handleAction, restartGame } = useGameLoop();
 
     useEffect(() => {
-        logger.info('SYSTEM', `Screen mounted (${Math.round(width)}x${Math.round(height)})`);
+        logger.info('SYSTEM', 'Screen mounted once, locked orientation active');
         if (Platform.OS === 'android') {
             NavigationBar.setVisibilityAsync('hidden').catch(() => { });
         }
-    }, [width, height]);
+    }, []);
 
     return (
         <View style={styles.root}>

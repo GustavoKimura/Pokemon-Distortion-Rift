@@ -2,8 +2,8 @@ export const GAME_CONFIG = {
     VIEWPORT: {
         LOGICAL_WIDTH: 960,
         LOGICAL_HEIGHT: 540,
-        TARGET_FPS: 60,
-        FRAME_TIME_MS: 1000 / 60,
+        TARGET_FPS: 30,
+        FRAME_TIME_MS: 1000 / 30,
     },
     LOGGING: {
         ENABLED: true,
