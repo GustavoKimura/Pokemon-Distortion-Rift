@@ -1,4 +1,5 @@
 import { PokemonType, SkillDefinition, SkillSlot } from './combat';
+import { PokemonNature } from './biome';
 
 export interface PokemonStats {
     hp: number;
@@ -46,6 +47,7 @@ export interface PlayerPokemon {
     height: number;
     weight: number;
     spriteUrl: string;
+    nature: PokemonNature;
     cryUrl?: string;
     abilityName?: string;
 }

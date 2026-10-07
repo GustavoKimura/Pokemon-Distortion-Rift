@@ -4,6 +4,7 @@ import { GAME_CONFIG } from '../config/gameConfig';
 import { PlayerPokemon } from '../models/pokemon';
 import { GameMode } from '../viewmodels/useGameLoop';
 import { AilmentType } from '../models/ailment';
+import { BiomeConfig } from '../models/biome';
 
 interface GameHudViewProps {
     player: PlayerPokemon | null;
@@ -14,6 +15,7 @@ interface GameHudViewProps {
     status: GameMode;
     isBlazeActive: boolean;
     playerAilment: AilmentType;
+    currentBiome: BiomeConfig;
     onRestart: () => void;
     scale: number;
 }
@@ -27,6 +29,7 @@ export function GameHudView({
     status,
     isBlazeActive,
     playerAilment,
+    currentBiome,
     onRestart,
     scale,
 }: GameHudViewProps) {
@@ -44,16 +47,21 @@ export function GameHudView({
                             <Text style={[styles.pokemonName, { fontSize: Math.max(10, 12 * scale) }]}>
                                 {player.name}
                             </Text>
+                            <View style={styles.natureBadge}>
+                                <Text style={[styles.natureText, { fontSize: Math.max(7, 8 * scale) }]}>
+                                    {player.nature.name} ({player.nature.tag})
+                                </Text>
+                            </View>
                             {isBlazeActive && (
                                 <View style={styles.blazeBadge}>
-                                    <Text style={[styles.blazeText, { fontSize: Math.max(8, 9 * scale) }]}>
+                                    <Text style={[styles.blazeText, { fontSize: Math.max(7, 8 * scale) }]}>
                                         BLAZE +50%
                                     </Text>
                                 </View>
                             )}
                             {playerAilment !== 'none' && (
                                 <View style={styles.ailmentBadge}>
-                                    <Text style={[styles.ailmentText, { fontSize: Math.max(8, 9 * scale) }]}>
+                                    <Text style={[styles.ailmentText, { fontSize: Math.max(7, 8 * scale) }]}>
                                         {playerAilment.toUpperCase()}
                                     </Text>
                                 </View>
@@ -91,6 +99,11 @@ export function GameHudView({
                 )}
 
                 <View style={styles.topRightRow}>
+                    <View style={[styles.biomeBadge, { borderColor: currentBiome.accentColor, paddingHorizontal: 8 * scale, paddingVertical: 2 * scale }]}>
+                        <Text style={[styles.biomeText, { color: currentBiome.accentColor, fontSize: Math.max(8, 9 * scale) }]}>
+                            {currentBiome.name}
+                        </Text>
+                    </View>
                     <View style={[styles.dustBadge, { paddingHorizontal: 8 * scale, paddingVertical: 2 * scale }]}>
                         <Text style={[styles.dustText, { fontSize: Math.max(9, 10 * scale) }]}>
                             {voidDust} DUST
@@ -115,7 +128,7 @@ export function GameHudView({
             {status === 'game_over' && (
                 <View style={styles.gameOverOverlay}>
                     <Text style={styles.gameOverTitle}>VOID CONSUMED</Text>
-                    <Text style={styles.gameOverSubtitle}>WAVE REACHED: {currentWave} | DUST COLLECTED: {voidDust}</Text>
+                    <Text style={styles.gameOverSubtitle}>WAVE REACHED: {currentWave} | BIOME: {currentBiome.name}</Text>
                     <TouchableOpacity style={styles.restartButton} onPress={onRestart}>
                         <Text style={styles.restartButtonText}>RETURN TO SANCTUARY</Text>
                     </TouchableOpacity>
@@ -144,13 +157,25 @@ const styles = StyleSheet.create({
     nameRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
         marginBottom: 4,
     },
     pokemonName: {
         fontWeight: '900',
         color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
         letterSpacing: 1.2,
+    },
+    natureBadge: {
+        backgroundColor: 'rgba(69, 162, 158, 0.3)',
+        borderWidth: 1,
+        borderColor: GAME_CONFIG.COLORS.CYAN_ACCENT,
+        borderRadius: 4,
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+    },
+    natureText: {
+        fontWeight: '800',
+        color: GAME_CONFIG.COLORS.CYAN_ACCENT,
     },
     blazeBadge: {
         backgroundColor: GAME_CONFIG.COLORS.BLAZE_AURA,
@@ -161,7 +186,6 @@ const styles = StyleSheet.create({
     blazeText: {
         fontWeight: '900',
         color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
-        letterSpacing: 0.8,
     },
     ailmentBadge: {
         backgroundColor: GAME_CONFIG.COLORS.AILMENT_BURN,
@@ -172,7 +196,6 @@ const styles = StyleSheet.create({
     ailmentText: {
         fontWeight: '900',
         color: GAME_CONFIG.COLORS.TEXT_PRIMARY,
-        letterSpacing: 0.8,
     },
     barBackground: {
         backgroundColor: 'rgba(31, 40, 51, 0.85)',
@@ -204,7 +227,16 @@ const styles = StyleSheet.create({
     topRightRow: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        gap: 8,
+        gap: 6,
+    },
+    biomeBadge: {
+        backgroundColor: 'rgba(31, 40, 51, 0.85)',
+        borderWidth: 1.5,
+        borderRadius: GAME_CONFIG.UI.BORDER_RADIUS_SM,
+    },
+    biomeText: {
+        fontWeight: '900',
+        letterSpacing: 0.8,
     },
     dustBadge: {
         backgroundColor: 'rgba(31, 40, 51, 0.85)',

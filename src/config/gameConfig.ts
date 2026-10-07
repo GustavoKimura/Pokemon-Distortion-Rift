@@ -44,6 +44,10 @@ export const GAME_CONFIG = {
         STAGE_2_WAVE: 3,
         STAGE_3_WAVE: 6,
     },
+    NATURES: {
+        STAT_BOOST: 1.10,
+        STAT_NERF: 0.90,
+    },
     PHYSICS: {
         PLAYER_SPEED: 260,
         PLAYER_DASH_SPEED: 640,

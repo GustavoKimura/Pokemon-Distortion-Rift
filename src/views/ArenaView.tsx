@@ -6,6 +6,7 @@ import { Enemy } from '../models/enemy';
 import { Projectile } from '../models/combat';
 import { ItemDrop } from '../models/item';
 import { AilmentType } from '../models/ailment';
+import { BiomeConfig } from '../models/biome';
 import { FloatingDamage } from '../viewmodels/useGameLoop';
 
 interface ArenaViewProps {
@@ -18,6 +19,7 @@ interface ArenaViewProps {
     isBlazeActive: boolean;
     playerAilment: AilmentType;
     enemyAilments: Record<string, AilmentType>;
+    currentBiome: BiomeConfig;
     scale: number;
 }
 
@@ -31,6 +33,7 @@ export function ArenaView({
     isBlazeActive,
     playerAilment,
     enemyAilments,
+    currentBiome,
     scale,
 }: ArenaViewProps) {
     const isDashing = player?.state === 'dashing';
@@ -43,8 +46,8 @@ export function ArenaView({
     };
 
     return (
-        <View style={styles.arenaContainer}>
-            <View style={styles.gridOverlay} />
+        <View style={[styles.arenaContainer, { backgroundColor: currentBiome.floorColor, borderColor: currentBiome.borderColor }]}>
+            <View style={[styles.gridOverlay, { borderColor: currentBiome.accentColor, opacity: 0.15 }]} />
 
             {items.map(item => {
                 const size = GAME_CONFIG.ITEMS.SPRITE_SIZE * scale;
@@ -253,6 +256,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
+        borderWidth: 2,
     },
     gridOverlay: {
         position: 'absolute',
@@ -261,7 +265,6 @@ const styles = StyleSheet.create({
         right: 0,
         bottom: 0,
         borderWidth: 1,
-        borderColor: 'rgba(69, 162, 158, 0.12)',
     },
     itemContainer: {
         position: 'absolute',

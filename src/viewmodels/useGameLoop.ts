@@ -6,8 +6,10 @@ import { Enemy } from '../models/enemy';
 import { ItemDrop } from '../models/item';
 import { MetaTalents } from '../models/starter';
 import { ActiveAilment, AilmentType } from '../models/ailment';
+import { BiomeConfig } from '../models/biome';
 import { pokeApiService } from '../services/pokeApi';
 import { evolutionService } from '../services/evolutionService';
+import { biomeService } from '../services/biomeService';
 import { useCombatEngine } from './useCombatEngine';
 import { logger } from '../utils/logger';
 
@@ -39,14 +41,8 @@ export interface GameFrameState {
     talents: MetaTalents;
     playerAilment: AilmentType;
     enemyAilments: Record<string, AilmentType>;
+    currentBiome: BiomeConfig;
 }
-
-const ENEMY_TEMPLATES = [
-    { pokedexId: 19, name: 'RATTATA', type: 'normal' as const, maxHp: 80, attack: 56, defense: 35, specialDefense: 35, weight: 35, height: 3, spriteUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/19.gif' },
-    { pokedexId: 41, name: 'ZUBAT', type: 'poison' as const, maxHp: 95, attack: 45, defense: 35, specialDefense: 40, weight: 75, height: 8, spriteUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/41.gif' },
-    { pokedexId: 92, name: 'GASTLY', type: 'ghost' as const, maxHp: 110, attack: 35, defense: 30, specialDefense: 35, weight: 1, height: 13, spriteUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/92.gif' },
-    { pokedexId: 95, name: 'ONIX', type: 'rock' as const, maxHp: 240, attack: 45, defense: 160, specialDefense: 45, weight: 2100, height: 88, spriteUrl: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/showdown/95.gif' },
-];
 
 export function useGameLoop() {
     const [gameState, setGameState] = useState<GameFrameState>({
@@ -66,6 +62,7 @@ export function useGameLoop() {
         talents: { vigor: 0, fury: 0, agility: 0, mastery: 0 },
         playerAilment: 'none',
         enemyAilments: {},
+        currentBiome: biomeService.getCurrentBiome(1),
     });
 
     const inputVectorRef = useRef({ x: 0, y: 0 });
@@ -106,11 +103,14 @@ export function useGameLoop() {
 
         pokeApiService.fetchPokemon(pokedexId).then(starter => {
             const t = talentsRef.current;
+            const nature = biomeService.getRandomNature();
+            starter.nature = nature;
+
             starter.stats.maxHp = Math.round(starter.stats.maxHp * (1 + t.vigor * GAME_CONFIG.META.HP_BONUS_PER_LEVEL));
             starter.currentHp = starter.stats.maxHp;
-            starter.stats.attack = Math.round(starter.stats.attack * (1 + t.fury * GAME_CONFIG.META.ATK_BONUS_PER_LEVEL));
-            starter.stats.specialAttack = Math.round(starter.stats.specialAttack * (1 + t.fury * GAME_CONFIG.META.ATK_BONUS_PER_LEVEL));
-            starter.stats.speed = Math.round(starter.stats.speed * (1 + t.agility * GAME_CONFIG.META.SPD_BONUS_PER_LEVEL));
+            starter.stats.attack = Math.round(starter.stats.attack * (1 + t.fury * GAME_CONFIG.META.ATK_BONUS_PER_LEVEL) * nature.attackMultiplier);
+            starter.stats.specialAttack = Math.round(starter.stats.specialAttack * (1 + t.fury * GAME_CONFIG.META.ATK_BONUS_PER_LEVEL) * nature.specialAttackMultiplier);
+            starter.stats.speed = Math.round(starter.stats.speed * (1 + t.agility * GAME_CONFIG.META.SPD_BONUS_PER_LEVEL) * nature.speedMultiplier);
 
             playerRef.current = starter;
             statusRef.current = 'playing';
@@ -125,6 +125,7 @@ export function useGameLoop() {
                 status: 'playing',
                 playerAilment: 'none',
                 enemyAilments: {},
+                currentBiome: biomeService.getCurrentBiome(1),
             }));
         });
     }, []);
@@ -227,16 +228,6 @@ export function useGameLoop() {
                 fpsTimerRef.current = now;
             }
 
-            if (now - perfLogTimerRef.current >= GAME_CONFIG.LOGGING.PERF_REPORT_INTERVAL_MS) {
-                perfLogTimerRef.current = now;
-                logger.perf(
-                    'FRAME',
-                    fpsValueRef.current,
-                    elapsed,
-                    `Enemies: ${enemiesRef.current.length} | Items: ${itemsRef.current.length}`
-                );
-            }
-
             const cd = cooldownsRef.current;
             cd.basic = Math.max(0, cd.basic - dt);
             cd.skill1 = Math.max(0, cd.skill1 - dt);
@@ -318,11 +309,14 @@ export function useGameLoop() {
                 });
             }
 
+            const activeBiome = biomeService.getCurrentBiome(waveRef.current);
+            const biomeEnemies = biomeService.getEnemiesForBiome(activeBiome.id);
+
             spawnTimerRef.current += dt;
             if (spawnTimerRef.current >= 1800 && enemiesRef.current.length < GAME_CONFIG.LIMITS.MAX_ENEMIES) {
                 spawnTimerRef.current = 0;
-                const t = ENEMY_TEMPLATES[Math.floor(Math.random() * ENEMY_TEMPLATES.length)];
-                const isBoss = waveRef.current % 5 === 0 && Math.random() < 0.2;
+                const t = biomeEnemies[Math.floor(Math.random() * biomeEnemies.length)];
+                const isBoss = waveRef.current % 5 === 0 && Math.random() < 0.25;
                 const side = Math.floor(Math.random() * 4);
                 let ex = GAME_CONFIG.PHYSICS.BOUNDARY_PADDING;
                 let ey = GAME_CONFIG.PHYSICS.BOUNDARY_PADDING;
@@ -540,6 +534,7 @@ export function useGameLoop() {
                 talents: { ...talentsRef.current },
                 playerAilment: playerAilmentRef.current?.type ?? 'none',
                 enemyAilments: enemyAilmentSnapshot,
+                currentBiome: activeBiome,
             });
 
             animId = requestAnimationFrame(loop);
@@ -564,6 +559,7 @@ export function useGameLoop() {
             isBlazeActive: false,
             playerAilment: 'none',
             enemyAilments: {},
+            currentBiome: biomeService.getCurrentBiome(1),
         }));
     }, []);
 

@@ -80,6 +80,7 @@ export function GameScreen() {
                             isBlazeActive={gameState.isBlazeActive}
                             playerAilment={gameState.playerAilment}
                             enemyAilments={gameState.enemyAilments}
+                            currentBiome={gameState.currentBiome}
                             scale={metrics.scale}
                         />
 
@@ -92,6 +93,7 @@ export function GameScreen() {
                             status={gameState.status}
                             isBlazeActive={gameState.isBlazeActive}
                             playerAilment={gameState.playerAilment}
+                            currentBiome={gameState.currentBiome}
                             onRestart={restartGame}
                             scale={metrics.scale}
                         />
@@ -118,9 +120,6 @@ const styles = StyleSheet.create({
     },
     viewport: {
         position: 'absolute',
-        backgroundColor: GAME_CONFIG.COLORS.ARENA_FLOOR,
-        borderWidth: 2,
-        borderColor: GAME_CONFIG.COLORS.ARENA_BORDER,
         borderRadius: GAME_CONFIG.UI.BORDER_RADIUS_MD,
         overflow: 'hidden',
     },
