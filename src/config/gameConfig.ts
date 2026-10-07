@@ -2,8 +2,8 @@ export const GAME_CONFIG = {
     VIEWPORT: {
         LOGICAL_WIDTH: 960,
         LOGICAL_HEIGHT: 540,
-        TARGET_FPS: 60,
-        FRAME_TIME_MS: 1000 / 60,
+        TARGET_FPS: 30,
+        FRAME_TIME_MS: 1000 / 30,
     },
     PHYSICS: {
         PLAYER_SPEED: 260,
@@ -17,8 +17,6 @@ export const GAME_CONFIG = {
         PROJECTILE_RADIUS: 10,
         BOUNDARY_PADDING: 32,
         KNOCKBACK_FORCE: 160,
-        MAGNET_RADIUS: 130,
-        GEM_RADIUS: 7,
     },
     COMBAT: {
         CRITICAL_MULTIPLIER: 2.0,
@@ -35,11 +33,6 @@ export const GAME_CONFIG = {
         SKILL_2_COOLDOWN_MS: 6500,
         INVULNERABILITY_AFTER_HIT_MS: 600,
         AUTO_ATTACK_INTERVAL_MS: 650,
-    },
-    ROGUELIKE: {
-        EXP_PER_GEM: 25,
-        BASE_EXP_PER_LEVEL: 100,
-        EXP_GROWTH_FACTOR: 1.35,
     },
     CONTROLS: {
         JOYSTICK_BASE_RADIUS: 64,
@@ -59,7 +52,6 @@ export const GAME_CONFIG = {
         HP_BAR_HEIGHT: 16,
         ENERGY_BAR_WIDTH: 200,
         ENERGY_BAR_HEIGHT: 8,
-        EXP_BAR_HEIGHT: 6,
         BORDER_RADIUS_SM: 6,
         BORDER_RADIUS_MD: 12,
         BORDER_RADIUS_LG: 18,
@@ -72,8 +64,6 @@ export const GAME_CONFIG = {
         HEALTH_BAR: '#E63946',
         SHIELD_DASH: '#457B9D',
         ULTIMATE_GAUGE: '#F4A261',
-        EXP_BAR: '#5BC0BE',
-        GEM_COLOR: '#66FCF1',
         TEXT_PRIMARY: '#FFFFFF',
         TEXT_SECONDARY: '#C5C6C7',
         CRITICAL_TEXT: '#FFD166',

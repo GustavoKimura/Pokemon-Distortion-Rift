@@ -8,14 +8,13 @@ import { calculateViewportMetrics } from '../utils/viewport';
 import { useGameLoop } from '../viewmodels/useGameLoop';
 import { ArenaView } from './ArenaView';
 import { GameHudView } from './GameHudView';
-import { LevelUpModal } from './LevelUpModal';
 import { TouchControlsOverlay } from '../components/controls/TouchControlsOverlay';
 
 export function GameScreen() {
     const { width, height } = useWindowDimensions();
     const insets = useSafeAreaInsets();
     const metrics = calculateViewportMetrics(width, height, insets);
-    const { gameState, setJoystickInput, handleAction, selectUpgrade, restartGame } = useGameLoop();
+    const { gameState, setJoystickInput, handleAction, restartGame } = useGameLoop();
 
     useEffect(() => {
         if (Platform.OS === 'android') {
@@ -41,7 +40,6 @@ export function GameScreen() {
                     player={gameState.player}
                     enemies={gameState.enemies}
                     projectiles={gameState.projectiles}
-                    gems={gameState.gems}
                     floatingDamages={gameState.floatingDamages}
                     targetEnemyId={gameState.targetEnemyId}
                     scale={metrics.scale}
@@ -51,9 +49,6 @@ export function GameScreen() {
                     player={gameState.player}
                     currentWave={gameState.currentWave}
                     kills={gameState.kills}
-                    level={gameState.level}
-                    currentExp={gameState.currentExp}
-                    targetExp={gameState.targetExp}
                     fps={gameState.fps}
                     status={gameState.status}
                     onRestart={restartGame}
@@ -66,14 +61,6 @@ export function GameScreen() {
                         onActionPress={handleAction}
                         cooldowns={gameState.cooldowns}
                         ultimateEnergy={gameState.player.ultimateEnergy}
-                    />
-                )}
-
-                {gameState.status === 'level_up' && (
-                    <LevelUpModal
-                        upgrades={gameState.upgrades}
-                        onSelect={selectUpgrade}
-                        scale={metrics.scale}
                     />
                 )}
             </View>

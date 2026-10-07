@@ -3,7 +3,6 @@ import { GAME_CONFIG } from '../config/gameConfig';
 import { PlayerPokemon } from '../models/pokemon';
 import { Projectile, SkillSlot } from '../models/combat';
 import { Enemy } from '../models/enemy';
-import { ExpGem, UpgradeOption } from '../models/roguelike';
 import { pokeApiService } from '../services/pokeApi';
 import { useCombatEngine } from './useCombatEngine';
 
@@ -16,33 +15,20 @@ export interface FloatingDamage {
     opacity: number;
 }
 
-export type GameStatus = 'loading' | 'playing' | 'level_up' | 'game_over';
+export type GameStatus = 'loading' | 'playing' | 'game_over';
 
 export interface GameFrameState {
     player: PlayerPokemon | null;
     enemies: Enemy[];
     projectiles: Projectile[];
     floatingDamages: FloatingDamage[];
-    gems: ExpGem[];
     cooldowns: Record<SkillSlot, number>;
     currentWave: number;
     kills: number;
-    level: number;
-    currentExp: number;
-    targetExp: number;
     fps: number;
     status: GameStatus;
     targetEnemyId: string | null;
-    upgrades: UpgradeOption[];
 }
-
-const UPGRADE_POOL: UpgradeOption[] = [
-    { id: 'flamethrower', name: 'TM35 FLAMETHROWER', description: '+40% Projectile Power & +20% Speed', category: 'attack', iconText: 'ATK+' },
-    { id: 'dragon_dance', name: 'DRAGON DANCE', description: '+25% Movement Speed & +30% Attack Rate', category: 'speed', iconText: 'SPD+' },
-    { id: 'leftovers', name: 'LEFTOVERS VIGOR', description: '+120 Max HP & Instant Recovery', category: 'health', iconText: 'HP+' },
-    { id: 'magnet_orb', name: 'MAGNETIC AMULET', description: '+100% Exp Gem Absorption Radius', category: 'utility', iconText: 'VAC+' },
-    { id: 'wide_blast', name: 'DIMENSIONAL IMPACT', description: '+60% Knockback Force on Collision', category: 'utility', iconText: 'KNB+' },
-];
 
 const ENEMY_TEMPLATES = [
     { pokedexId: 19, name: 'RATTATA', type: 'normal' as const, maxHp: 80, damage: 12 },
@@ -57,17 +43,12 @@ export function useGameLoop() {
         enemies: [],
         projectiles: [],
         floatingDamages: [],
-        gems: [],
         cooldowns: { basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0 },
         currentWave: 1,
         kills: 0,
-        level: 1,
-        currentExp: 0,
-        targetExp: GAME_CONFIG.ROGUELIKE.BASE_EXP_PER_LEVEL,
-        fps: 60,
+        fps: 30,
         status: 'loading',
         targetEnemyId: null,
-        upgrades: [],
     });
 
     const inputVectorRef = useRef({ x: 0, y: 0 });
@@ -76,22 +57,17 @@ export function useGameLoop() {
     const lastTimeRef = useRef(performance.now());
     const fpsTimerRef = useRef(performance.now());
     const frameCountRef = useRef(0);
-    const fpsValueRef = useRef(60);
+    const fpsValueRef = useRef(30);
 
     const playerRef = useRef<PlayerPokemon | null>(null);
     const enemiesRef = useRef<Enemy[]>([]);
     const projectilesRef = useRef<Projectile[]>([]);
     const damagesRef = useRef<FloatingDamage[]>([]);
-    const gemsRef = useRef<ExpGem[]>([]);
     const cooldownsRef = useRef({ basic: 0, skill1: 0, skill2: 0, dash: 0, ultimate: 0 });
     const waveRef = useRef(1);
     const killsRef = useRef(0);
-    const levelRef = useRef(1);
-    const expRef = useRef(0);
-    const targetExpRef = useRef(GAME_CONFIG.ROGUELIKE.BASE_EXP_PER_LEVEL);
     const spawnTimerRef = useRef(0);
     const statusRef = useRef<GameStatus>('loading');
-    const availableUpgradesRef = useRef<UpgradeOption[]>([]);
 
     const { calculateDamage, createProjectile } = useCombatEngine();
 
@@ -147,20 +123,6 @@ export function useGameLoop() {
         projectilesRef.current.push(proj);
     }, [createProjectile, getNearestEnemyAngle]);
 
-    const selectUpgrade = useCallback((upgrade: UpgradeOption) => {
-        const p = playerRef.current;
-        if (p) {
-            if (upgrade.id === 'flamethrower') p.stats.attack = Math.round(p.stats.attack * 1.4);
-            if (upgrade.id === 'dragon_dance') p.stats.speed = Math.round(p.stats.speed * 1.25);
-            if (upgrade.id === 'leftovers') {
-                p.stats.maxHp += 120;
-                p.currentHp = p.stats.maxHp;
-            }
-        }
-        statusRef.current = 'playing';
-        setGameState(prev => ({ ...prev, status: 'playing', upgrades: [] }));
-    }, []);
-
     useEffect(() => {
         let animId: number;
 
@@ -170,13 +132,19 @@ export function useGameLoop() {
                 return;
             }
 
-            const dt = Math.min(33, now - lastTimeRef.current);
-            lastTimeRef.current = now;
-            const dtSec = dt / 1000;
+            const elapsed = now - lastTimeRef.current;
+            if (elapsed < GAME_CONFIG.VIEWPORT.FRAME_TIME_MS) {
+                animId = requestAnimationFrame(loop);
+                return;
+            }
+
+            lastTimeRef.current = now - (elapsed % GAME_CONFIG.VIEWPORT.FRAME_TIME_MS);
+            const dtSec = GAME_CONFIG.VIEWPORT.FRAME_TIME_MS / 1000;
+            const dt = GAME_CONFIG.VIEWPORT.FRAME_TIME_MS;
 
             frameCountRef.current += 1;
             if (now - fpsTimerRef.current >= 500) {
-                fpsValueRef.current = Math.round((frameCountRef.current * 1000) / (now - fpsTimerRef.current));
+                fpsValueRef.current = Math.min(30, Math.round((frameCountRef.current * 1000) / (now - fpsTimerRef.current)));
                 frameCountRef.current = 0;
                 fpsTimerRef.current = now;
             }
@@ -218,30 +186,10 @@ export function useGameLoop() {
                     p.facingAngle = aim;
                     projectilesRef.current.push(createProjectile('basic', p.skills.basic, p.position, aim));
                 }
-
-                gemsRef.current = gemsRef.current.filter(gem => {
-                    const dist = Math.hypot(p.position.x - gem.x, p.position.y - gem.y);
-                    if (dist <= GAME_CONFIG.PHYSICS.MAGNET_RADIUS) {
-                        gem.x += (p.position.x - gem.x) * 8 * dtSec;
-                        gem.y += (p.position.y - gem.y) * 8 * dtSec;
-                    }
-                    if (dist <= GAME_CONFIG.PHYSICS.PLAYER_RADIUS) {
-                        expRef.current += gem.value;
-                        if (expRef.current >= targetExpRef.current) {
-                            expRef.current -= targetExpRef.current;
-                            levelRef.current += 1;
-                            targetExpRef.current = Math.round(targetExpRef.current * GAME_CONFIG.ROGUELIKE.EXP_GROWTH_FACTOR);
-                            statusRef.current = 'level_up';
-                            availableUpgradesRef.current = UPGRADE_POOL.slice().sort(() => 0.5 - Math.random()).slice(0, 3);
-                        }
-                        return false;
-                    }
-                    return true;
-                });
             }
 
             spawnTimerRef.current += dt;
-            if (spawnTimerRef.current >= 1800 && enemiesRef.current.length < 12) {
+            if (spawnTimerRef.current >= 1800 && enemiesRef.current.length < 10) {
                 spawnTimerRef.current = 0;
                 const t = ENEMY_TEMPLATES[Math.floor(Math.random() * ENEMY_TEMPLATES.length)];
                 const isBoss = waveRef.current % 5 === 0 && Math.random() < 0.2;
@@ -324,12 +272,6 @@ export function useGameLoop() {
                 if (e.currentHp <= 0) {
                     killsRef.current += 1;
                     if (killsRef.current % 10 === 0) waveRef.current += 1;
-                    gemsRef.current.push({
-                        id: `g-${Date.now()}-${Math.random()}`,
-                        x: e.position.x,
-                        y: e.position.y,
-                        value: GAME_CONFIG.ROGUELIKE.EXP_PER_GEM,
-                    });
                     if (p) {
                         p.ultimateEnergy = Math.min(
                             GAME_CONFIG.COMBAT.MAX_ULTIMATE_ENERGY,
@@ -362,17 +304,12 @@ export function useGameLoop() {
                 enemies: [...enemiesRef.current],
                 projectiles: [...projectilesRef.current],
                 floatingDamages: [...damagesRef.current],
-                gems: [...gemsRef.current],
                 cooldowns: { ...cd },
                 currentWave: waveRef.current,
                 kills: killsRef.current,
-                level: levelRef.current,
-                currentExp: expRef.current,
-                targetExp: targetExpRef.current,
                 fps: fpsValueRef.current,
                 status: statusRef.current,
                 targetEnemyId: closestId,
-                upgrades: availableUpgradesRef.current,
             });
 
             animId = requestAnimationFrame(loop);
@@ -386,12 +323,8 @@ export function useGameLoop() {
         enemiesRef.current = [];
         projectilesRef.current = [];
         damagesRef.current = [];
-        gemsRef.current = [];
         killsRef.current = 0;
         waveRef.current = 1;
-        levelRef.current = 1;
-        expRef.current = 0;
-        targetExpRef.current = GAME_CONFIG.ROGUELIKE.BASE_EXP_PER_LEVEL;
         dashTimerRef.current = 0;
         autoAttackTimerRef.current = 0;
         inputVectorRef.current = { x: 0, y: 0 };
@@ -404,11 +337,8 @@ export function useGameLoop() {
                 enemies: [],
                 projectiles: [],
                 floatingDamages: [],
-                gems: [],
                 currentWave: 1,
                 kills: 0,
-                level: 1,
-                currentExp: 0,
                 status: 'playing',
             }));
         });
@@ -418,7 +348,6 @@ export function useGameLoop() {
         gameState,
         setJoystickInput,
         handleAction,
-        selectUpgrade,
         restartGame,
     };
 }
